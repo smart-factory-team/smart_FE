@@ -1,0 +1,1 @@
+export { PaintingMonitoring } from './PaintingMonitoring';
