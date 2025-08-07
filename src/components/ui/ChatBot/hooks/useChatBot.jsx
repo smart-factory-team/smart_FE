@@ -1,5 +1,61 @@
+// ===============================
+// 1. useChatBot.jsx (API 제거 버전)
+// src/components/ui/ChatBot/hooks/useChatBot.jsx
+// ===============================
+
 import { useState } from 'react';
-import { API_CONFIG } from '../data/chatBotData';
+
+// Mock 응답 데이터
+const MOCK_RESPONSES = {
+  'multi-agent': [
+    `📋 **요약**
+용접 전류+진동 복합 이상이 감지되었습니다. 즉시 대응이 필요한 상황입니다.
+
+🚨 **즉시 조치사항**
+1. 용접 작업 즉시 중단 [긴급]
+2. 전극 상태 점검 (소요시간: 15분) [높음]
+3. 진동 측정 및 원인 파악 (소요시간: 30분) [높음]
+
+🔧 **상세 해결방안**
+**1차 점검** (예상시간: 1시간)
+  • 전극 마모 상태 확인
+  • 접촉부 청소 및 정렬
+  • 진동 센서 캘리브레이션
+
+**2차 수리** (예상시간: 2-3시간)  
+  • 필요시 전극 교체
+  • 기계적 고정부 점검
+  • 전기 연결부 재정비
+
+⚠️ **안전 주의사항**
+• 작업 전 전원 완전 차단 필수
+• 개인보호장비 착용
+• 2인 1조 작업 진행
+
+💰 **예상 비용**
+• 부품비: 50,000 - 150,000원
+• 인건비: 200,000원
+• 총 비용: 250,000 - 350,000원
+
+🎯 **신뢰도**: 94%
+👥 **참여 전문가**: 용접전문가, 진동분석전문가, 전기전문가
+⏱️ **분석 시간**: 2.3초`,
+    
+    "네, 추가로 궁금한 점이 있으시면 언제든 문의해주세요. 정기 점검 주기나 예방 방법에 대해서도 안내해드릴 수 있습니다.",
+    
+    "예방을 위해서는 주 1회 전극 상태 점검과 월 1회 진동 측정을 권장합니다. 조기 발견 시 비용을 80% 절약할 수 있습니다."
+  ],
+  'safety': [
+    "안전 관련 문의에 대해 GPT 전문가가 답변드리겠습니다. 작업자의 안전이 최우선입니다.",
+    "개인보호장비 착용과 안전 절차 준수가 중요합니다.",
+    "추가 안전 문의사항이 있으시면 언제든 말씀해주세요."
+  ],
+  'technical': [
+    "기술적 문제에 대해 Gemini 전문가가 상세히 분석해드리겠습니다.",
+    "설비의 기술적 사양과 작동 원리를 바탕으로 해결책을 제시합니다.",
+    "기술 문서나 매뉴얼이 필요하시면 안내해드릴 수 있습니다."
+  ]
+};
 
 export const useChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,6 +66,7 @@ export const useChatBot = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [responseIndex, setResponseIndex] = useState(0);
 
   const toggleChat = () => {
     setIsOpen(!isOpen);
@@ -26,108 +83,14 @@ export const useChatBot = () => {
     setMessages([]);
     setInputValue('');
     setIsLoading(false);
+    setResponseIndex(0);
   };
 
-  // 세션 생성 API 호출
+  // Mock 세션 생성
   const createSession = async () => {
-    try {
-      const response = await fetch(`${API_CONFIG.baseUrl}/api/session/new`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('세션 생성 실패');
-      }
-
-      const data = await response.json();
-      return data.session_id;
-    } catch (error) {
-      console.error('세션 생성 오류:', error);
-      return null;
-    }
-  };
-
-  // 🔧 Multi-Agent API 응답을 포맷팅하는 함수
-  const formatMultiAgentResponse = (data) => {
-    let formattedResponse = '';
-
-    // 1. 요약 정보
-    if (data.executive_summary) {
-      formattedResponse += `📋 **요약**\n${data.executive_summary}\n\n`;
-    }
-
-    // 2. 즉시 조치사항
-    if (data.immediate_actions && data.immediate_actions.length > 0) {
-      formattedResponse += `🚨 **즉시 조치사항**\n`;
-      data.immediate_actions.forEach((action, index) => {
-        formattedResponse += `${index + 1}. ${action.action}`;
-        if (action.time) formattedResponse += ` (소요시간: ${action.time})`;
-        if (action.priority) formattedResponse += ` [${action.priority}]`;
-        formattedResponse += '\n';
-      });
-      formattedResponse += '\n';
-    }
-
-    // 3. 상세 해결방안
-    if (data.detailed_solution && data.detailed_solution.length > 0) {
-      formattedResponse += `🔧 **상세 해결방안**\n`;
-      data.detailed_solution.forEach((phase, index) => {
-        formattedResponse += `**${phase.phase}**`;
-        if (phase.estimated_time) formattedResponse += ` (예상시간: ${phase.estimated_time})`;
-        formattedResponse += '\n';
-        
-        if (phase.actions && phase.actions.length > 0) {
-          phase.actions.forEach(action => {
-            formattedResponse += `  • ${action}\n`;
-          });
-        }
-        formattedResponse += '\n';
-      });
-    }
-
-    // 4. 안전 주의사항
-    if (data.safety_precautions && data.safety_precautions.length > 0) {
-      formattedResponse += `⚠️ **안전 주의사항**\n`;
-      data.safety_precautions.forEach(precaution => {
-        formattedResponse += `• ${precaution}\n`;
-      });
-      formattedResponse += '\n';
-    }
-
-    // 5. 비용 추정
-    if (data.cost_estimation) {
-      formattedResponse += `💰 **예상 비용**\n`;
-      if (data.cost_estimation.parts) formattedResponse += `• 부품비: ${data.cost_estimation.parts}\n`;
-      if (data.cost_estimation.labor) formattedResponse += `• 인건비: ${data.cost_estimation.labor}\n`;
-      if (data.cost_estimation.total) formattedResponse += `• 총 비용: ${data.cost_estimation.total}\n`;
-      formattedResponse += '\n';
-    }
-
-    // 6. 추가 정보
-    if (data.confidence_level) {
-      formattedResponse += `🎯 **신뢰도**: ${data.confidence_level}%\n`;
-    }
-
-    if (data.participating_agents && data.participating_agents.length > 0) {
-      formattedResponse += `👥 **참여 전문가**: ${data.participating_agents.join(', ')}\n`;
-    }
-
-    if (data.processing_time) {
-      formattedResponse += `⏱️ **분석 시간**: ${data.processing_time}초\n`;
-    }
-
-    // 7. 실패한 에이전트가 있다면 알림
-    if (data.failed_agents && data.failed_agents.length > 0) {
-      formattedResponse += `\n⚠️ **일부 전문가 응답 실패**\n`;
-      data.failed_agents.forEach(agent => {
-        formattedResponse += `• ${agent.agent_name} (${agent.specialty}): ${agent.error_message}\n`;
-      });
-    }
-
-    return formattedResponse || '응답을 받을 수 없습니다.';
+    // 가짜 지연시간
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return `mock_session_${Date.now()}`;
   };
 
   // 카테고리 선택 처리
@@ -136,24 +99,18 @@ export const useChatBot = () => {
     setCurrentStep('issue');
   };
 
-  // 이슈 선택 처리
+  // 이슈 선택 처리 (Mock 버전)
   const handleIssueSelect = async (issue) => {
     setIsLoading(true);
     
     try {
       const newSessionId = await createSession();
       
-      if (!newSessionId) {
-        alert('세션 생성에 실패했습니다. 다시 시도해주세요.');
-        setIsLoading(false);
-        return;
-      }
-
       setSelectedIssue(issue);
       setSessionId(newSessionId);
       setCurrentStep('chat');
       
-      // 이슈 기반 환영 메시지 생성
+      // Mock 환영 메시지
       setMessages([
         {
           id: 1,
@@ -177,7 +134,7 @@ export const useChatBot = () => {
     }
   };
 
-  // 메시지 전송 처리
+  // Mock 메시지 전송 처리
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading || !sessionId || !selectedCategory) return;
 
@@ -189,89 +146,33 @@ export const useChatBot = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const currentInput = inputValue;
     setInputValue('');
     setIsLoading(true);
 
     try {
-      let requestBody;
-      let headers = {
-        'Content-Type': 'application/json',
-      };
+      // Mock API 지연 시뮬레이션
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // API 엔드포인트별 요청 데이터 구성
-      if (selectedCategory.id === 'multi-agent') {
-        // 통합 문의 (Multi-Agent)
-        headers['x-api-key'] = API_CONFIG.apiKey;
-        requestBody = {
-          user_message: currentInput,
-          issue_code: selectedIssue?.id || "WELD-CURRENT_AND_VIBRATION-ANOMALY",
-          session_id: sessionId,
-          user_id: API_CONFIG.userId
-        };
-      } else {
-        // GPT/Gemini Agent
-        requestBody = {
-          message: currentInput,
-          session_id: sessionId
-        };
-      }
-
-      console.log('🔧 API 요청:', {
-        url: `${API_CONFIG.baseUrl}${selectedCategory.endpoint}`,
-        headers,
-        body: requestBody
-      });
-
-      const response = await fetch(`${API_CONFIG.baseUrl}${selectedCategory.endpoint}`, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('📡 API 응답:', data);
-
-      let botResponseText;
-
-      // 🔧 API 응답 형태에 따라 다르게 처리
-      if (selectedCategory.id === 'multi-agent') {
-        // Multi-Agent API 응답 포맷팅
-        botResponseText = formatMultiAgentResponse(data);
-      } else {
-        // 기존 GPT/Gemini API 응답
-        botResponseText = data.response || data.message || '응답을 받을 수 없습니다.';
-      }
+      // Mock 응답 선택
+      const responses = MOCK_RESPONSES[selectedCategory.id] || ['Mock 응답입니다.'];
+      const currentResponse = responses[responseIndex % responses.length];
       
       const botMessage = {
         id: Date.now() + 1,
-        text: botResponseText,
+        text: currentResponse,
         isUser: false,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, botMessage]);
+      setResponseIndex(prev => prev + 1);
 
     } catch (error) {
-      console.error('❌ 메시지 전송 오류:', error);
-      
-      // 🔧 더 상세한 에러 메시지
-      let errorText = '죄송합니다. 오류가 발생했습니다.';
-      if (error.message.includes('HTTP 4')) {
-        errorText += ' 인증 또는 요청 형식을 확인해주세요.';
-      } else if (error.message.includes('HTTP 5')) {
-        errorText += ' 서버에 일시적인 문제가 있습니다. 잠시 후 다시 시도해주세요.';
-      } else {
-        errorText += ' 네트워크 연결을 확인해주세요.';
-      }
+      console.error('메시지 전송 오류:', error);
       
       const errorMessage = {
         id: Date.now() + 1,
-        text: errorText,
+        text: '죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요.',
         isUser: false,
         timestamp: new Date()
       };
