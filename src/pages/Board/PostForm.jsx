@@ -245,307 +245,310 @@ const ExistingFileInfo = styled.div`
   color: #155724;
 `;
 
-export const PostForm = ({
-    mode = 'create', // 'create' 또는 'edit'
-    initialData = {},
-    onSubmit,
-    onCancel
+export const PostForm = ({ 
+  mode = 'create', // 'create' 또는 'edit'
+  initialData = {},
+  onSubmit,
+  onCancel
 }) => {
-    const navigate = useNavigate();
-    const [formData, setFormData] = useState({
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    category: '',
+    userId: 'current_user',
+    ...initialData
+  });
+  const [pdfFile, setPdfFile] = useState(null);
+  const [existingFile, setExistingFile] = useState(initialData.existingFile || null);
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const categories = [
+    { value: 'PRESS', label: '프레스 공정' },
+    { value: 'WELDING', label: '차체 공정' },
+    { value: 'PAINTING', label: '도장 공정' },
+    { value: 'ASSEMBLY', label: '의장 조립 공정' }
+  ];
+
+  useEffect(() => {
+    if (initialData && Object.keys(initialData).length > 0) {
+      setFormData(prev => ({
         title: '',
         content: '',
         category: '',
         userId: 'current_user',
         ...initialData
-    });
-    const [pdfFile, setPdfFile] = useState(null);
-    const [existingFile, setExistingFile] = useState(initialData.existingFile || null);
-    const [errors, setErrors] = useState({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
+      }));
+    }
+  }, [initialData.title, initialData.content, initialData.category]); // 특정 값만 의존성으로 설정
 
-    const categories = [
-        { value: 'PRESS', label: '프레스 공정' },
-        { value: 'CHASSIS', label: '차체 공정' },
-        { value: 'PAINT', label: '도장 공정' },
-        { value: 'ASSEMBLY', label: '의장 조립 공정' }
-    ];
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
 
-    useEffect(() => {
-        if (initialData) {
-            setFormData(prev => ({
-                ...prev,
-                ...initialData
-            }));
-        }
-    }, [initialData]);
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
+  const handleFileUpload = (file) => {
+    if (file && file.type === 'application/pdf') {
+      setPdfFile(file);
+      if (errors.pdfFile) {
+        setErrors(prev => ({
+          ...prev,
+          pdfFile: ''
         }));
+      }
+    } else {
+      setErrors(prev => ({
+        ...prev,
+        pdfFile: 'PDF 파일만 업로드 가능합니다.'
+      }));
+    }
+  };
 
-        if (errors[name]) {
-            setErrors(prev => ({
-                ...prev,
-                [name]: ''
-            }));
-        }
-    };
+  const handleFileInputChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
 
-    const handleFileUpload = (file) => {
-        if (file && file.type === 'application/pdf') {
-            setPdfFile(file);
-            if (errors.pdfFile) {
-                setErrors(prev => ({
-                    ...prev,
-                    pdfFile: ''
-                }));
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('dragover');
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover');
+  };
+
+  const removeFile = () => {
+    setPdfFile(null);
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.title.trim()) {
+      newErrors.title = '제목을 입력해주세요.';
+    }
+
+    if (!formData.content.trim()) {
+      newErrors.content = '내용을 입력해주세요.';
+    }
+
+    if (!formData.category) {
+      newErrors.category = '카테고리를 선택해주세요.';
+    }
+
+    // 작성 모드에서는 PDF 필수, 수정 모드에서는 기존 파일이 있으면 선택사항
+    if (mode === 'create' && !pdfFile) {
+      newErrors.pdfFile = 'PDF 파일을 업로드해주세요.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const submitData = new FormData();
+      submitData.append('title', formData.title);
+      submitData.append('content', formData.content);
+      submitData.append('category', formData.category);
+      submitData.append('userId', formData.userId);
+      
+      if (pdfFile) {
+        submitData.append('pdfFile', pdfFile);
+      }
+
+      await onSubmit(submitData);
+      
+    } catch (error) {
+      console.error(`게시글 ${mode === 'create' ? '작성' : '수정'} 실패:`, error);
+      alert(`게시글 ${mode === 'create' ? '작성' : '수정'}에 실패했습니다.`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate('/board');
+    }
+  };
+
+  return (
+    <Container>
+      <Header>
+        <Title>
+          {mode === 'create' ? '✍️ 게시글 작성' : '✏️ 게시글 수정'}
+        </Title>
+        <Subtitle>
+          {mode === 'create' ? '새로운 게시글을 작성합니다.' : '게시글을 수정합니다.'}
+        </Subtitle>
+      </Header>
+
+      <Form onSubmit={handleSubmit}>
+        <FormGroup>
+          <Label>
+            제목<RequiredMark>*</RequiredMark>
+          </Label>
+          <Input
+            type="text"
+            name="title"
+            value={formData.title}
+            onChange={handleInputChange}
+            placeholder="게시글 제목을 입력하세요"
+            className={errors.title ? 'error' : ''}
+          />
+          {errors.title && <ErrorMessage>{errors.title}</ErrorMessage>}
+        </FormGroup>
+
+        <FormGroup>
+          <Label>
+            카테고리<RequiredMark>*</RequiredMark>
+          </Label>
+          <Select
+            name="category"
+            value={formData.category}
+            onChange={handleInputChange}
+            className={errors.category ? 'error' : ''}
+          >
+            <option value="">카테고리를 선택하세요</option>
+            {categories.map(cat => (
+              <option key={cat.value} value={cat.value}>
+                {cat.label}
+              </option>
+            ))}
+          </Select>
+          {errors.category && <ErrorMessage>{errors.category}</ErrorMessage>}
+        </FormGroup>
+
+        <FormGroup>
+          <Label>
+            내용<RequiredMark>*</RequiredMark>
+          </Label>
+          <Textarea
+            name="content"
+            value={formData.content}
+            onChange={handleInputChange}
+            placeholder="게시글 내용을 입력하세요"
+            className={errors.content ? 'error' : ''}
+          />
+          {errors.content && <ErrorMessage>{errors.content}</ErrorMessage>}
+        </FormGroup>
+
+        <FormGroup>
+          <Label>
+            PDF 첨부파일
+            {mode === 'create' && <RequiredMark>*</RequiredMark>}
+          </Label>
+
+          {/* 기존 파일 정보 표시 (수정 모드) */}
+          {mode === 'edit' && existingFile && !pdfFile && (
+            <ExistingFileInfo>
+              📄 현재 파일: {existingFile.fileName} ({existingFile.fileSize})
+            </ExistingFileInfo>
+          )}
+
+          <FileUploadArea
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => document.getElementById('pdfFileInput').click()}
+            className={errors.pdfFile ? 'error' : ''}
+          >
+            <FileUploadIcon>📄</FileUploadIcon>
+            <FileUploadText>
+              클릭하거나 파일을 드래그하여 PDF를 업로드하세요
+            </FileUploadText>
+            <div style={{ fontSize: '12px', color: '#999' }}>
+              {mode === 'create' 
+                ? 'PDF 파일만 업로드 가능합니다 (필수)' 
+                : 'PDF 파일만 업로드 가능합니다 (기존 파일 교체 시에만)'
+              }
+            </div>
+          </FileUploadArea>
+          
+          <FileInput
+            id="pdfFileInput"
+            type="file"
+            accept=".pdf"
+            onChange={handleFileInputChange}
+          />
+
+          {pdfFile && (
+            <SelectedFile>
+              <FileIcon>📄</FileIcon>
+              <FileName>{pdfFile.name}</FileName>
+              <FileSize>{formatFileSize(pdfFile.size)}</FileSize>
+              <RemoveFileButton type="button" onClick={removeFile}>
+                ✕
+              </RemoveFileButton>
+            </SelectedFile>
+          )}
+          
+          {errors.pdfFile && <ErrorMessage>{errors.pdfFile}</ErrorMessage>}
+        </FormGroup>
+
+        <ButtonGroup>
+          <Button 
+            type="button" 
+            className="secondary"
+            onClick={handleCancel}
+          >
+            취소
+          </Button>
+          <Button 
+            type="submit" 
+            className="primary"
+            disabled={isSubmitting}
+          >
+            {isSubmitting 
+              ? `${mode === 'create' ? '작성' : '수정'} 중...` 
+              : `게시글 ${mode === 'create' ? '작성' : '수정'}`
             }
-        } else {
-            setErrors(prev => ({
-                ...prev,
-                pdfFile: 'PDF 파일만 업로드 가능합니다.'
-            }));
-        }
-    };
-
-    const handleFileInputChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            handleFileUpload(file);
-        }
-    };
-
-    const handleDrop = (e) => {
-        e.preventDefault();
-        e.currentTarget.classList.remove('dragover');
-        const file = e.dataTransfer.files[0];
-        if (file) {
-            handleFileUpload(file);
-        }
-    };
-
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        e.currentTarget.classList.add('dragover');
-    };
-
-    const handleDragLeave = (e) => {
-        e.preventDefault();
-        e.currentTarget.classList.remove('dragover');
-    };
-
-    const removeFile = () => {
-        setPdfFile(null);
-    };
-
-    const formatFileSize = (bytes) => {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    };
-
-    const validateForm = () => {
-        const newErrors = {};
-
-        if (!formData.title.trim()) {
-            newErrors.title = '제목을 입력해주세요.';
-        }
-
-        if (!formData.content.trim()) {
-            newErrors.content = '내용을 입력해주세요.';
-        }
-
-        if (!formData.category) {
-            newErrors.category = '카테고리를 선택해주세요.';
-        }
-
-        // 작성 모드에서는 PDF 필수, 수정 모드에서는 기존 파일이 있으면 선택사항
-        if (mode === 'create' && !pdfFile) {
-            newErrors.pdfFile = 'PDF 파일을 업로드해주세요.';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!validateForm()) {
-            return;
-        }
-
-        setIsSubmitting(true);
-
-        try {
-            const submitData = new FormData();
-            submitData.append('title', formData.title);
-            submitData.append('content', formData.content);
-            submitData.append('category', formData.category);
-            submitData.append('userId', formData.userId);
-
-            if (pdfFile) {
-                submitData.append('pdfFile', pdfFile);
-            }
-
-            await onSubmit(submitData);
-
-        } catch (error) {
-            console.error(`게시글 ${mode === 'create' ? '작성' : '수정'} 실패:`, error);
-            alert(`게시글 ${mode === 'create' ? '작성' : '수정'}에 실패했습니다.`);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleCancel = () => {
-        if (onCancel) {
-            onCancel();
-        } else {
-            navigate('/board');
-        }
-    };
-
-    return (
-        <Container>
-            <Header>
-                <Title>
-                    {mode === 'create' ? '✍️ 게시글 작성' : '✏️ 게시글 수정'}
-                </Title>
-                <Subtitle>
-                    {mode === 'create' ? '새로운 게시글을 작성합니다.' : '게시글을 수정합니다.'}
-                </Subtitle>
-            </Header>
-
-            <Form onSubmit={handleSubmit}>
-                <FormGroup>
-                    <Label>
-                        제목<RequiredMark>*</RequiredMark>
-                    </Label>
-                    <Input
-                        type="text"
-                        name="title"
-                        value={formData.title}
-                        onChange={handleInputChange}
-                        placeholder="게시글 제목을 입력하세요"
-                        className={errors.title ? 'error' : ''}
-                    />
-                    {errors.title && <ErrorMessage>{errors.title}</ErrorMessage>}
-                </FormGroup>
-
-                <FormGroup>
-                    <Label>
-                        카테고리<RequiredMark>*</RequiredMark>
-                    </Label>
-                    <Select
-                        name="category"
-                        value={formData.category}
-                        onChange={handleInputChange}
-                        className={errors.category ? 'error' : ''}
-                    >
-                        <option value="">카테고리를 선택하세요</option>
-                        {categories.map(cat => (
-                            <option key={cat.value} value={cat.value}>
-                                {cat.label}
-                            </option>
-                        ))}
-                    </Select>
-                    {errors.category && <ErrorMessage>{errors.category}</ErrorMessage>}
-                </FormGroup>
-
-                <FormGroup>
-                    <Label>
-                        내용<RequiredMark>*</RequiredMark>
-                    </Label>
-                    <Textarea
-                        name="content"
-                        value={formData.content}
-                        onChange={handleInputChange}
-                        placeholder="게시글 내용을 입력하세요"
-                        className={errors.content ? 'error' : ''}
-                    />
-                    {errors.content && <ErrorMessage>{errors.content}</ErrorMessage>}
-                </FormGroup>
-
-                <FormGroup>
-                    <Label>
-                        PDF 첨부파일
-                        {mode === 'create' && <RequiredMark>*</RequiredMark>}
-                    </Label>
-
-                    {/* 기존 파일 정보 표시 (수정 모드) */}
-                    {mode === 'edit' && existingFile && !pdfFile && (
-                        <ExistingFileInfo>
-                            📄 현재 파일: {existingFile.fileName} ({existingFile.fileSize})
-                        </ExistingFileInfo>
-                    )}
-
-                    <FileUploadArea
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onClick={() => document.getElementById('pdfFileInput').click()}
-                        className={errors.pdfFile ? 'error' : ''}
-                    >
-                        <FileUploadIcon>📄</FileUploadIcon>
-                        <FileUploadText>
-                            클릭하거나 파일을 드래그하여 PDF를 업로드하세요
-                        </FileUploadText>
-                        <div style={{ fontSize: '12px', color: '#999' }}>
-                            {mode === 'create'
-                                ? 'PDF 파일만 업로드 가능합니다 (필수)'
-                                : 'PDF 파일만 업로드 가능합니다 (기존 파일 교체 시에만)'
-                            }
-                        </div>
-                    </FileUploadArea>
-
-                    <FileInput
-                        id="pdfFileInput"
-                        type="file"
-                        accept=".pdf"
-                        onChange={handleFileInputChange}
-                    />
-
-                    {pdfFile && (
-                        <SelectedFile>
-                            <FileIcon>📄</FileIcon>
-                            <FileName>{pdfFile.name}</FileName>
-                            <FileSize>{formatFileSize(pdfFile.size)}</FileSize>
-                            <RemoveFileButton type="button" onClick={removeFile}>
-                                ✕
-                            </RemoveFileButton>
-                        </SelectedFile>
-                    )}
-
-                    {errors.pdfFile && <ErrorMessage>{errors.pdfFile}</ErrorMessage>}
-                </FormGroup>
-
-                <ButtonGroup>
-                    <Button
-                        type="button"
-                        className="secondary"
-                        onClick={handleCancel}
-                    >
-                        취소
-                    </Button>
-                    <Button
-                        type="submit"
-                        className="primary"
-                        disabled={isSubmitting}
-                    >
-                        {isSubmitting
-                            ? `${mode === 'create' ? '작성' : '수정'} 중...`
-                            : `게시글 ${mode === 'create' ? '작성' : '수정'}`
-                        }
-                    </Button>
-                </ButtonGroup>
-            </Form>
-        </Container>
-    );
+          </Button>
+        </ButtonGroup>
+      </Form>
+    </Container>
+  );
 };
