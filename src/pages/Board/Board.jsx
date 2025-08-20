@@ -156,8 +156,8 @@ const PostInfo = styled.div`
 
 const StatusBadge = styled.span`
   padding: 4px 8px;
-  background: ${props => props.solved ? '#28a745' : '#ffc107'};
-  color: ${props => props.solved ? 'white' : '#333'};
+  background: ${props => props.solved ? '#28a745' : '#f02400ff'};
+  color: white;
   border-radius: 10px;
   font-size: 12px;
   font-weight: 500;
