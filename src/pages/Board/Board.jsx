@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { posts_list } from './test_posts';
-import { useNavigate } from 'react-router-dom';
 
 const Container = styled.div`
   padding: 40px;
@@ -156,8 +156,8 @@ const PostInfo = styled.div`
 
 const StatusBadge = styled.span`
   padding: 4px 8px;
-  background: ${props => props.solved ? '#28a745' : '#ff0303ff'};
-  color: white;
+  background: ${props => props.solved ? '#28a745' : '#ffc107'};
+  color: ${props => props.solved ? 'white' : '#333'};
   border-radius: 10px;
   font-size: 12px;
   font-weight: 500;
@@ -191,11 +191,33 @@ const PageButton = styled.button`
   }
 `;
 
+const CreateButton = styled.button`
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 20px;
+
+  &:hover {
+    background: #218838;
+  }
+`;
+
+const BoardActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+`;
+
 export const Board = () => {
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('전체');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const navigate = useNavigate();
 
   const categories = ['전체', '프레스 공정', '차체 공정', '도장 공정', '의장 조립 공정'];
   
@@ -262,6 +284,7 @@ export const Board = () => {
       </Header>
 
       <FilterSection>
+        
         <CategoryButtons>
           {categories.map(category => (
             <CategoryButton
@@ -319,6 +342,11 @@ export const Board = () => {
           </PageButton>
         ))}
       </Pagination>
+        <BoardActions>
+          <CreateButton onClick={() => navigate('/board/create')}>
+            ✍️ 게시글 작성
+          </CreateButton>
+        </BoardActions>
     </Container>
   );
 };
