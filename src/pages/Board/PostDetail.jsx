@@ -65,17 +65,6 @@ const StatusBadge = styled.span`
   font-size: 12px;
 `;
 
-const IssueCode = styled.div`
-  font-family: monospace;
-  background: #f8f9fa;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  color: #666;
-  margin-top: 10px;
-  display: none;
-`;
-
 const Content = styled.div`
   background: #f8f9fa;
   padding: 30px;
@@ -265,47 +254,6 @@ const ActionButton = styled.button`
 
   &:hover {
     text-decoration: underline;
-  }
-`;
-
-const PostActions = styled.div`
-  display: flex;
-  gap: 15px;
-  justify-content: flex-end;
-  padding: 20px 0;
-  border-bottom: 2px solid #eee;
-  margin-bottom: 30px;
-`;
-
-const ActionBtn = styled.button`
-  padding: 10px 20px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-
-  &.edit {
-    background: #007bff;
-    color: white;
-    border-color: #007bff;
-
-    &:hover {
-      background: #0056b3;
-      border-color: #0056b3;
-    }
-  }
-
-  &.delete {
-    background: #f02400ff;
-    color: white;
-    border-color: #f02400ff;
-
-    &:hover {
-      background: #d92436ff;
-      border-color: #cd2334ff;
-    }
   }
 `;
 
@@ -503,7 +451,6 @@ export const PostDetail = () => {
                 {comment.content}
               </CommentContent>
               <CommentActions>
-                <ActionButton>답글</ActionButton>
                 <ActionButton>삭제</ActionButton>
               </CommentActions>
             </CommentItem>
