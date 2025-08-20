@@ -59,7 +59,7 @@ const CategoryTag = styled.span`
 
 const StatusBadge = styled.span`
   padding: 4px 12px;
-  background: ${props => props.solved ? '#28a745' : '#f02400ff'};
+  background: ${props => props.$solved ? '#28a745' : '#f02400ff'};
   color: white;
   border-radius: 12px;
   font-size: 12px;
@@ -348,10 +348,7 @@ export const PostDetail = () => {
       {
         id: '1',
         postId: '1',
-        fileName: 'sensor_analysis_report.pdf',
-        filePath: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', // 테스트용 PDF
-        fileSize: '2.5MB',
-        uploadedAt: '2025-08-18T08:30:00Z'
+        filePath: '/기업분석보고서_(주)LG에너지솔루션.pdf', // public 폴더의 PDF
       }
     ];
     
@@ -360,7 +357,7 @@ export const PostDetail = () => {
   };
 
   const formatDate = (isoString) => {
-    const date = new Date(isoString);
+    const date = new Date(isoString); 
     return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   };
 
@@ -419,7 +416,7 @@ export const PostDetail = () => {
           <span>|</span>
           <span>{formatDate(post.createdAt)}</span>
           <CategoryTag>{getCategoryName(post.category)}</CategoryTag>
-          <StatusBadge solved={post.isSolved}>
+          <StatusBadge $solved={post.isSolved}>
             {post.isSolved ? '✅ 해결됨' : '⚠️ 미해결'}
           </StatusBadge>
         </PostInfo>

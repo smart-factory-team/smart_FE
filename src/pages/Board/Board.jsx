@@ -156,7 +156,7 @@ const PostInfo = styled.div`
 
 const StatusBadge = styled.span`
   padding: 4px 8px;
-  background: ${props => props.solved ? '#28a745' : '#f02400ff'};
+  background: ${props => props.$solved ? '#28a745' : '#f02400ff'};
   color: white;
   border-radius: 10px;
   font-size: 12px;
@@ -175,14 +175,14 @@ const Pagination = styled.div`
 const PageButton = styled.button`
   padding: 8px 12px;
   border: 1px solid #ddd;
-  background: ${props => props.active ? '#007bff' : '#fff'};
-  color: ${props => props.active ? '#fff' : '#333'};
+  background: ${props => props.$active ? '#007bff' : '#fff'};
+  color: ${props => props.$active ? '#fff' : '#333'};
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
 
   &:hover {
-    background: ${props => props.active ? '#0056b3' : '#f8f9fa'};
+    background: ${props => props.$active ? '#0056b3' : '#f8f9fa'};
   }
 
   &:disabled {
@@ -289,7 +289,7 @@ export const Board = () => {
           {categories.map(category => (
             <CategoryButton
               key={category}
-              active={activeCategory === category}
+              $active={activeCategory === category}
               onClick={() => handleCategoryChange(category)}
             >
               {category}
@@ -323,7 +323,7 @@ export const Board = () => {
               </PostMeta>
             </PostLeft>
             <PostRight>
-              <StatusBadge solved={post.isSolved}>
+              <StatusBadge $solved={post.isSolved}>
                 {post.isSolved ? '해결완료' : '해결중'}
               </StatusBadge>
             </PostRight>
@@ -335,7 +335,7 @@ export const Board = () => {
         {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
           <PageButton
             key={page}
-            active={currentPage === page}
+            $active={currentPage === page}
             onClick={() => setCurrentPage(page)}
           >
             {page}
