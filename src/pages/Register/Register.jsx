@@ -368,7 +368,7 @@ export const Register = () => {
         <div className="container">
           <div className="title-2">회원가입</div>
           <p className="description">
-            스마트 팩토리 모니터링 시스템에 가입하여 AI 기반 공정 관리 서비스를 이용하세요.
+            회원가입으로 AI 기반 공정 관리 서비스를 이용을 요청하세요.
           </p>
         </div>
 
