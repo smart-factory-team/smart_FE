@@ -113,7 +113,7 @@ export const PressMonitoring = () => {
       <PageLayout 
         title="프레스 공정 모니터링"
         description="프레스 공정 수신 양호 🟢"
-        footerTitle="프레스 공정 가공률 상태"
+        footerTitle="프레스 생산품 불량 상태"
         footerDescription="차트 컴포넌트가 여기에 들어갈 예정입니다."
         showFooter={true}
       >
