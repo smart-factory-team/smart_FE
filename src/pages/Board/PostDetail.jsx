@@ -426,22 +426,6 @@ export const PostDetail = () => {
         {post.content}
       </Content>
 
-      {/* 게시글 액션 버튼 */}
-      <PostActions>
-        <ActionBtn 
-          className="edit"
-          onClick={() => navigate(`/board/edit/${post.id}`)}
-        >
-          ✏️ 수정
-        </ActionBtn>
-        <ActionBtn 
-          className="delete"
-          onClick={handleDelete}
-        >
-          🗑️ 삭제
-        </ActionBtn>
-      </PostActions>
-
       {/* PDF 첨부파일 섹션 */}
       {pdfAttachments.length > 0 && (
         <AttachmentSection>
