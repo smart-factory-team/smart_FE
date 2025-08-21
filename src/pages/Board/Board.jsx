@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { posts_list } from './test_posts';
+import axios from 'axios';
 
 const Container = styled.div`
   padding: 40px;
@@ -213,12 +213,24 @@ const BoardActions = styled.div`
   margin-bottom: 20px;
 `;
 
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 50px;
+  font-size: 16px;
+  color: #666;
+`;
+
 export const Board = () => {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('전체');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const url = process.env.REACT_APP_API_BASE_URL;
+  
   const categories = ['전체', '프레스 공정', '차체 공정', '도장 공정', '의장 조립 공정'];
   
   // 카테고리 매핑
@@ -230,6 +242,27 @@ export const Board = () => {
     '의장 조립 공정': 'ASSEMBLY'
   };
 
+  // API에서 게시글 목록 가져오기
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/posts');
+      // API 응답이 배열인지 확인하고, 배열이 아니면 빈 배열로 설정
+      const postsData = Array.isArray(response.data._embedded.posts) ? response.data._embedded.posts : [];
+      setPosts(postsData);
+    } catch (error) {
+      console.error('Failed to fetch posts:', error);
+      // 에러 발생 시 빈 배열로 설정
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
   // 날짜 포맷팅 함수
   const formatDate = (isoString) => {
     const date = new Date(isoString);
@@ -237,10 +270,10 @@ export const Board = () => {
   };
 
   // 필터링된 게시물
-  const filteredPosts = posts_list.filter(post => {
+  const filteredPosts = posts.filter(post => {
     const categoryFilter = activeCategory === '전체' || post.category === categoryMap[activeCategory];
-    const searchFilter = post.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        post.userId.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchFilter = (post.title && post.title.toLowerCase().includes(searchTerm.toLowerCase())) || 
+                        (post.userId && post.userId.toLowerCase().includes(searchTerm.toLowerCase()));
     return categoryFilter && searchFilter;
   });
 
@@ -309,8 +342,13 @@ export const Board = () => {
         </SearchContainer>
       </FilterSection>
 
-      <PostList>
-        {currentPosts.map(post => (
+      {loading ? (
+        <LoadingContainer>
+          게시글을 불러오는 중...
+        </LoadingContainer>
+      ) : (
+        <PostList>
+          {currentPosts.map(post => (
           <PostItem key={post.id}
           onClick={() => navigate(`/board/${post.id}`)}>
             <PostLeft>
@@ -330,8 +368,10 @@ export const Board = () => {
           </PostItem>
         ))}
       </PostList>
+      )}
 
-      <Pagination>
+      {!loading && (
+        <Pagination>
         {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
           <PageButton
             key={page}
@@ -341,7 +381,8 @@ export const Board = () => {
             {page}
           </PageButton>
         ))}
-      </Pagination>
+        </Pagination>
+      )}
         <BoardActions>
           <CreateButton onClick={() => navigate('/board/create')}>
             ✍️ 게시글 작성
