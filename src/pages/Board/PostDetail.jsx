@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { posts_list } from './test_posts';
+import axios from 'axios';
 
 const Container = styled.div`
   padding: 40px;
@@ -257,51 +257,107 @@ const ActionButton = styled.button`
   }
 `;
 
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 100px;
+  font-size: 16px;
+  color: #666;
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 100px;
+  font-size: 16px;
+  color: #666;
+  gap: 20px;
+`;
+
 export const PostDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [post, setPost] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [pdfAttachments, setPdfAttachments] = useState([]);
-  const [comments, setComments] = useState([
-    {
-      id: 1,
-      author: 'user02',
-      content: '같은 문제 발생했습니다. 해결 방법 공유 부탁드립니다.',
-      createdAt: '2025-08-18T09:30:00Z'
-    },
-    {
-      id: 2,
-      author: 'user03',
-      content: '센서 교체 후 정상 작동 확인했습니다.',
-      createdAt: '2025-08-18T10:15:00Z'
-    }
-  ]);
+  const [comments, setComments] = useState([]);
 
   useEffect(() => {
-    const foundPost = posts_list.find(p => p.id === id);
-    setPost(foundPost);
+    fetchPostDetail();
     
-    // PDF 첨부파일 조회 (실제로는 API 호출)
-    fetchPDFAttachments(id);
+    // 컴포넌트 언마운트 시 Blob URL 정리
+    return () => {
+      pdfAttachments.forEach(pdf => {
+        if (pdf.filePath.startsWith('blob:')) {
+          URL.revokeObjectURL(pdf.filePath);
+        }
+      });
+    };
   }, [id]);
 
+  const fetchPostDetail = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`/posts/${id}`);
+      setPost(response.data);
+      
+      // PDF 첨부파일 조회
+      fetchPDFAttachments(id);
+      
+      // 댓글 목록 조회
+      fetchComments(id);
+    } catch (error) {
+      console.error('Failed to fetch post detail:', error);
+      setPost(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchPDFAttachments = async (postId) => {
-    // 실제 구현에서는 API 호출
-    // const response = await fetch(`/api/posts/${postId}/attachments`);
-    // const pdfs = await response.json();
-    
-    // 더미 데이터 (예시) - 특정 게시글에만 PDF 첨부
-    const dummyPDFs = [
-      {
-        id: '1',
-        postId: '1',
-        filePath: '/기업분석보고서_(주)LG에너지솔루션.pdf', // public 폴더의 PDF
+    try {
+      const response = await axios.get(`/reports/post/${postId}`, {
+        responseType: 'blob'
+      });
+      
+      // Blob URL 생성
+      const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      
+      // Content-Disposition 헤더에서 파일명 추출
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = 'report.pdf';
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (fileNameMatch && fileNameMatch[1]) {
+          fileName = fileNameMatch[1].replace(/['"]/g, '');
+        }
       }
-    ];
-    
-    const postPDFs = dummyPDFs.filter(pdf => pdf.postId === postId);
-    setPdfAttachments(postPDFs);
+      
+      setPdfAttachments([{
+        id: postId,
+        fileName: fileName,
+        filePath: pdfUrl,
+        fileSize: `${(response.data.size / 1024 / 1024).toFixed(2)} MB`
+      }]);
+    } catch (error) {
+      console.error('Failed to fetch pdf detail: ', error);
+      setPdfAttachments([]);
+    }
+  };
+
+  const fetchComments = async (postId) => {
+    try {
+      const response = await axios.get(`/comments/search/findByPostIdAndIsDeletedFalse/${postId}`);
+      setComments(response.data);
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
+      setComments([]);
+    }
   };
 
   const formatDate = (isoString) => {
@@ -332,6 +388,18 @@ export const PostDetail = () => {
     }
   };
 
+  const handleDeleteComment = async (commentId) => {
+    if (window.confirm('정말로 이 댓글을 삭제하시겠습니까?')) {
+      try {
+        await axios.delete(`/comments/${commentId}`);
+        setComments(comments.filter(comment => comment.id !== commentId));
+      } catch (error) {
+        console.error('댓글 삭제 실패:', error);
+        alert('댓글 삭제에 실패했습니다.');
+      }
+    }
+  };
+
   const handleDelete = () => {
     if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
       try {
@@ -347,8 +415,27 @@ export const PostDetail = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <Container>
+        <LoadingContainer>
+          게시글을 불러오는 중...
+        </LoadingContainer>
+      </Container>
+    );
+  }
+
   if (!post) {
-    return <Container>게시글을 찾을 수 없습니다.</Container>;
+    return (
+      <Container>
+        <ErrorContainer>
+          <div>게시글을 찾을 수 없습니다.</div>
+          <Button className="primary" onClick={() => navigate('/board')}>
+            목록으로 돌아가기
+          </Button>
+        </ErrorContainer>
+      </Container>
+    );
   }
 
   return (
@@ -451,7 +538,7 @@ export const PostDetail = () => {
                 {comment.content}
               </CommentContent>
               <CommentActions>
-                <ActionButton>삭제</ActionButton>
+                <ActionButton onClick={() => handleDeleteComment(comment.id)}>삭제</ActionButton>
               </CommentActions>
             </CommentItem>
           ))}

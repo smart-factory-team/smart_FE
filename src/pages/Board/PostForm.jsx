@@ -368,7 +368,6 @@ export const PostForm = ({
       newErrors.category = '카테고리를 선택해주세요.';
     }
 
-    // 작성 모드에서는 PDF 필수, 수정 모드에서는 기존 파일이 있으면 선택사항
     if (mode === 'create' && !pdfFile) {
       newErrors.pdfFile = 'PDF 파일을 업로드해주세요.';
     }
@@ -387,17 +386,19 @@ export const PostForm = ({
     setIsSubmitting(true);
 
     try {
-      const submitData = new FormData();
-      submitData.append('title', formData.title);
-      submitData.append('content', formData.content);
-      submitData.append('category', formData.category);
-      submitData.append('userId', formData.userId);
-      
-      if (pdfFile) {
-        submitData.append('pdfFile', pdfFile);
-      }
+      // 게시글 데이터 준비
+      const postData = {
+        title: formData.title,
+        content: formData.content,
+        category: formData.category,
+        userId: formData.userId,
+        ...(mode === 'create' && { createdAt: new Date().toISOString() })
+      };
 
-      await onSubmit(submitData);
+      console.log('게시글 데이터:', postData);
+      console.log('PDF 파일:', pdfFile);
+
+      await onSubmit(postData, pdfFile);
       
     } catch (error) {
       console.error(`게시글 ${mode === 'create' ? '작성' : '수정'} 실패:`, error);
