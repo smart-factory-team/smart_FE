@@ -504,7 +504,7 @@ export const PaintingMonitoring = () => {
                   {isMonitoringConnected ? '연결됨' : '대기 중'}
                 </StatusBadge>
               </HeaderContent>
-              <CardDescription>센서 데이터(소음, 진동, 온도) 실시간 분석</CardDescription>
+              <CardDescription>도장 설비 상태 실시간 분석</CardDescription>
             </CardHeader>
             
             <CardContent>
