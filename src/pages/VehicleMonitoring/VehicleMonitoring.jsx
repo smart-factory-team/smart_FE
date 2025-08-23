@@ -331,14 +331,21 @@ const SectionTitle = styled.div`
 `;
 
 export const VehicleMonitoring = () => {
-  // 상태 관리
+  // ✅ 상태 관리 (올바른 순서)
   const [isStreamConnected, setIsStreamConnected] = useState(false);
   const [isMonitoringConnected, setIsMonitoringConnected] = useState(false);
   const [isSimulatorRunning, setIsSimulatorRunning] = useState(false);
   const [simulatorLoading, setSimulatorLoading] = useState(false);
   const [monitoringData, setMonitoringData] = useState([]);
   
-  // 장비 데이터
+  // ✨ 실시간 장비 상태 관리
+  const [currentEquipmentStatus, setCurrentEquipmentStatus] = useState({
+    current: 'NORMAL',
+    vibration: 'NORMAL',
+    overall: 'normal'
+  });
+  
+  // ✨ 동적 장비 데이터 (실시간 상태 반영)
   const [weldingEquipmentData, setWeldingEquipmentData] = useState([
     {
       id: 1,
@@ -372,7 +379,7 @@ export const VehicleMonitoring = () => {
     }
   ]);
 
-  // WebSocket 메시지 처리
+  // ✅ 핸들러 함수들 (올바른 순서)
   const handleWebSocketMessage = useCallback((event) => {
     const { type, data } = event;
     if (type === 'CONNECTION_STATUS') {
@@ -380,11 +387,35 @@ export const VehicleMonitoring = () => {
     }
   }, []);
 
+  // ✨ 차트에서 상태 변경 알림을 받는 핸들러
+  const handleStatusChange = useCallback((statusData) => {
+    setCurrentEquipmentStatus(statusData);
+    
+    // 용접기 1의 상태 업데이트
+    setWeldingEquipmentData(prevData => 
+      prevData.map(equipment => 
+        equipment.id === 1 
+          ? {
+              ...equipment,
+              status: statusData.overall === 'anomaly' ? '이상' : '정상',
+              operatingStatus: statusData.overall === 'anomaly' ? '이상 감지' : '가동 중',
+              isOperating: statusData.overall === 'normal'
+            }
+          : equipment
+      )
+    );
+    
+    console.log('📊 장비 리스트 상태 업데이트:', statusData);
+  }, []);
+
+  // ✨ 모니터링 메시지 처리
   const handleMonitoringMessage = useCallback((event) => {
     const { type, data } = event;
+    
     if (type === 'CONNECTION_STATUS') {
       setIsMonitoringConnected(data.connected);
     } else if (type === 'MONITORING_DATA') {
+      // 모니터링 데이터만 업데이트 (상태는 차트 컴포넌트에서 처리)
       setMonitoringData(prev => [...prev, data].slice(-50));
     }
   }, []);
@@ -405,7 +436,7 @@ export const VehicleMonitoring = () => {
         setIsSimulatorRunning(true);
         console.log('✅ 시뮬레이터 시작 성공');
       } else {
-        console.error('❌ 시뮬레이터 시작 실패:', response.status);
+        console.error('⌛ 시뮬레이터 시작 실패:', response.status);
         if (process.env.NODE_ENV === 'development') {
           setIsSimulatorRunning(true);
           console.log('🔧 개발 모드: 시뮬레이터 상태 변경');
@@ -433,7 +464,7 @@ export const VehicleMonitoring = () => {
         setIsSimulatorRunning(false);
         console.log('✅ 시뮬레이터 중지 성공');
       } else {
-        console.error('❌ 시뮬레이터 중지 실패:', response.status);
+        console.error('⌛ 시뮬레이터 중지 실패:', response.status);
         if (process.env.NODE_ENV === 'development') {
           setIsSimulatorRunning(false);
           console.log('🔧 개발 모드: 시뮬레이터 상태 변경');
@@ -470,7 +501,7 @@ export const VehicleMonitoring = () => {
         title="차체 공정 모니터링"
         description={`차체 공정 수신 ${isStreamConnected ? '양호 🟢' : '대기 중 ⚪'} | 모니터링 ${isMonitoringConnected ? '연결됨 📊' : '대기 중 ⚪'}`}
       >          
-          {/* 장비 목록 */}
+          {/* ✨ 실시간 상태가 반영되는 장비 목록 */}
           <EquipmentList 
             title="로봇 용접기 상태 목록"
             equipmentData={weldingEquipmentData}
@@ -485,10 +516,10 @@ export const VehicleMonitoring = () => {
             <CardHeader title="실시간 용접 공정 모니터링">
               <HeaderContent>
                 <CardTitle>실시간 용접 공정 모니터링</CardTitle>
-                <StatusBadge connected={isMonitoringConnected}>
+                {/* <StatusBadge connected={isMonitoringConnected}>
                   <StatusDot connected={isMonitoringConnected} />
                   {isMonitoringConnected ? '연결됨' : '대기 중'}
-                </StatusBadge>
+                </StatusBadge> */}
               </HeaderContent>
               <CardDescription>전류 및 진동 센서 데이터 실시간 분석</CardDescription>
             </CardHeader>
@@ -500,6 +531,7 @@ export const VehicleMonitoring = () => {
                   monitoringData={monitoringData}
                   maxDataPoints={20}
                   isConnected={isMonitoringConnected}
+                  onStatusChange={handleStatusChange}
                 />
               ) : (
                 <EmptyState>

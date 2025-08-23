@@ -215,24 +215,35 @@ const TooltipStatus = styled.span.withConfig({
 `;
 
 /**
- * 실시간 용접 공정 모니터링 차트 컴포넌트
- * WebSocket으로부터 받은 예측 데이터를 실시간으로 시각화
+ * ✨ 개선된 실시간 용접 공정 모니터링 차트 컴포넌트
+ * - 시간 동기화 처리
+ * - 전류/진동 임계치 분리 
+ * - 데이터 버퍼링 및 통합 표시
+ * - 상위 컴포넌트에 상태 전달
  */
 const SimpleRealTimeChart = ({ 
   monitoringData = [], 
   maxDataPoints = 20,
   isConnected = false,
-  title = "실시간 용접 공정 모니터링"
+  title = "실시간 용접 공정 모니터링",
+  onStatusChange // ✨ 새로 추가: 상위 컴포넌트에 상태 변경 알림
 }) => {
   
-  // 차트 데이터 상태
+  // ✨ 개선된 상태 관리
   const [chartData, setChartData] = useState([]);
+  const [dataBuffer, setDataBuffer] = useState(new Map()); // 시간별 데이터 버퍼
   const [currentStats, setCurrentStats] = useState({
     current: { value: 0, status: 'normal', confidence: 0 },
     vibration: { value: 0, status: 'normal', confidence: 0 }
   });
+  
+  // ✨ API에서 받아오는 동적 임계치 설정 (전류와 진동 각각)
+  const [thresholds, setThresholds] = useState({
+    current: 2.8,    // 전류 임계치 (기본값)
+    vibration: 2.2   // 진동 임계치 (기본값)
+  });
 
-  // WebSocket 데이터 처리 - 단순화된 버전
+  // ✨ 개선된 WebSocket 데이터 처리 - 시간 동기화 로직
   useEffect(() => {
     if (monitoringData.length === 0) return;
 
@@ -240,146 +251,173 @@ const SimpleRealTimeChart = ({
     
     // CONNECTION_ESTABLISHED 메시지는 무시
     if (!latestData.predictionResult) {
-      console.log('❌ 연결 메시지 또는 predictionResult가 없음 - 스킵');
+      console.log('⌛ 연결 메시지 또는 predictionResult가 없음 - 스킵');
       return;
     }
 
-    const processedData = processMonitoringData(latestData);
+    // ✨ 시간 동기화를 위한 데이터 처리
+    processTimeSynchedData(latestData);
     
-    if (processedData) {
-      console.log('🔧 처리된 데이터를 차트에 추가:', processedData);
-      
-      setChartData(prev => {
-        const newData = [...prev, processedData].slice(-maxDataPoints);
-        console.log('📊 차트 데이터 업데이트:', newData.length, '개');
-        return newData;
-      });
-
-      // 현재 상태 업데이트
-      setCurrentStats(prev => {
-        const newStats = { ...prev };
-        
-        if (processedData.signalType === 'current') {
-          newStats.current = {
-            value: processedData.value,
-            status: processedData.status,
-            confidence: processedData.confidence
-          };
-        } else if (processedData.signalType === 'vibration') {
-          newStats.vibration = {
-            value: processedData.value,
-            status: processedData.status,
-            confidence: processedData.confidence
-          };
-        }
-        
-        console.log('📊 상태 업데이트:', newStats);
-        return newStats;
-      });
-    }
   }, [monitoringData, maxDataPoints]);
 
-  // 모니터링 데이터 처리 함수 - 개선된 버전
-  const processMonitoringData = (data) => {
-    console.log('🔧 차트 데이터 파싱 시작:', data);
-    
-    if (!data || !data.predictionResult) {
-      console.log('❌ 데이터 또는 predictionResult가 없음');
-      return null;
-    }
-
-    const timestamp = new Date(data.timestamp);
-    const timeString = timestamp.toLocaleTimeString();
-    
+  // ✨ 새로운 함수: 시간 동기화된 데이터 처리
+  const processTimeSynchedData = (data) => {
+    const timestamp = data.timestamp;
     const prediction = data.predictionResult;
     const sensorSummary = prediction.sensorValues || {};
     
-    // 신호 타입 정규화 (cur -> current, vib -> vibration)
+    // 신호 타입 정규화
     const normalizedSignalType = data.signalType === 'cur' ? 'current' : 
                                  data.signalType === 'vib' ? 'vibration' : 
                                  data.signalType;
     
-    const processedData = {
-      time: timeString,
-      timestamp: data.timestamp,
-      signalType: normalizedSignalType,
-      value: sensorSummary.average || 0,
-      confidence: prediction.confidence || 0,
-      status: prediction.status || 'normal',
+    // ✨ API에서 받은 임계치로 동적 업데이트
+    const apiThreshold = prediction.threshold || 2.5;
+    setThresholds(prevThresholds => ({
+      ...prevThresholds,
+      [normalizedSignalType]: apiThreshold
+    }));
+    
+    console.log(`📊 임계치 업데이트: ${normalizedSignalType} = ${apiThreshold}`);
+    
+    // ✨ 1분 단위로 시간 버킷 생성 (초 단위 차이 무시)
+    const timeKey = Math.floor(timestamp / 60000) * 60000; // 1분 단위로 버킷팅
+    const timeString = new Date(timeKey).toLocaleTimeString();
+    
+    console.log(`📊 데이터 처리: ${normalizedSignalType} at ${timeString} (버킷: ${timeKey})`);
+    
+    // 버퍼에서 해당 시간대 데이터 가져오기
+    setDataBuffer(prevBuffer => {
+      const newBuffer = new Map(prevBuffer);
       
-      // 임계값과 이상 점수
-      threshold: prediction.threshold || 2.5,
-      anomalyScore: prediction.anomalyScore || 0,
-      
-      // 장비 정보
-      equipmentId: data.equipmentId,
-      isAnomalous: prediction.isAnomalous || false
-    };
-    
-    console.log('✅ 파싱된 차트 데이터:', processedData);
-    return processedData;
-  };
-
-  // 차트 데이터 통합 - 전류와 진동을 따로 라인으로 표시
-  const getIntegratedChartData = () => {
-    console.log('📊 차트 데이터 가져오기:', chartData.length, '개');
-    
-    if (chartData.length === 0) {
-      console.log('📊 차트 데이터가 없음 - 빈 배열 반환');
-      return [];
-    }
-
-    // 시간별로 데이터 그룹화하여 전류/진동 분리 표시
-    const timeGroups = {};
-    
-    chartData.forEach(item => {
-      const timeKey = item.time;
-      if (!timeGroups[timeKey]) {
-        timeGroups[timeKey] = { 
-          time: timeKey, 
-          timestamp: item.timestamp,
-          threshold: item.threshold || 2.5
+      // ✨ 기존 데이터가 있으면 복사해서 새 객체 생성 (불변성 유지)
+      let timeData;
+      if (newBuffer.has(timeKey)) {
+        // 기존 데이터를 복사하여 새 객체 생성
+        timeData = { ...newBuffer.get(timeKey) };
+      } else {
+        // 새로운 데이터 객체 생성
+        timeData = {
+          time: timeString,
+          timestamp: timeKey,
+          current: null,
+          vibration: null,
+          current_threshold: null,
+          vibration_threshold: null,
+          current_status: 'normal',
+          vibration_status: 'normal'
         };
       }
       
-      // 신호 타입에 따라 데이터 추가
-      if (item.signalType === 'current') {
-        timeGroups[timeKey].current = item.value;
-        timeGroups[timeKey].current_status = item.status;
-      } else if (item.signalType === 'vibration') {
-        timeGroups[timeKey].vibration = item.value;
-        timeGroups[timeKey].vibration_status = item.status;
+      // ✨ 복사된 객체에 데이터 할당 (이제 읽기 전용 에러 없음)
+      if (normalizedSignalType === 'current') {
+        timeData.current = sensorSummary.average || 0;
+        timeData.current_threshold = apiThreshold;
+        timeData.current_status = prediction.status || 'normal';
+      } else if (normalizedSignalType === 'vibration') {
+        timeData.vibration = sensorSummary.average || 0;
+        timeData.vibration_threshold = apiThreshold;
+        timeData.vibration_status = prediction.status || 'normal';
       }
+      
+      // ✨ 새로운 객체를 Map에 다시 저장
+      newBuffer.set(timeKey, timeData);
+      
+      console.log(`📊 버퍼 업데이트:`, timeData);
+      
+      return newBuffer;
     });
-
-    const result = Object.values(timeGroups).sort((a, b) => a.timestamp - b.timestamp);
-    console.log('📊 통합된 차트 데이터:', result.length, '개');
-    return result;
+    
+    // ✨ 현재 상태 업데이트
+    setCurrentStats(prev => {
+      const newStats = { ...prev };
+      
+      if (normalizedSignalType === 'current') {
+        newStats.current = {
+          value: sensorSummary.average || 0,
+          status: prediction.status || 'normal',
+          confidence: prediction.confidence || 0
+        };
+      } else if (normalizedSignalType === 'vibration') {
+        newStats.vibration = {
+          value: sensorSummary.average || 0,
+          status: prediction.status || 'normal',
+          confidence: prediction.confidence || 0
+        };
+      }
+      
+      // ✨ 상위 컴포넌트에 상태 변경 알림
+      if (onStatusChange) {
+        // 전류 또는 진동 중 하나라도 이상이면 전체 이상으로 처리
+        const currentStatus = normalizedSignalType === 'current' ? (prediction.status || 'normal') : newStats.current.status;
+        const vibrationStatus = normalizedSignalType === 'vibration' ? (prediction.status || 'normal') : newStats.vibration.status;
+        
+        const overallStatus = (
+          currentStatus === 'ANOMALY' || currentStatus === 'anomaly' ||
+          vibrationStatus === 'ANOMALY' || vibrationStatus === 'anomaly'
+        ) ? 'anomaly' : 'normal';
+        
+        onStatusChange({
+          current: currentStatus,
+          vibration: vibrationStatus,
+          overall: overallStatus
+        });
+        
+        console.log(`📊 상태 변경 알림: 전류=${currentStatus}, 진동=${vibrationStatus}, 전체=${overallStatus}`);
+      }
+      
+      return newStats;
+    });
   };
 
-  // 커스텀 툴팁
+  // ✨ 버퍼 데이터를 차트 데이터로 변환
+  useEffect(() => {
+    // 버퍼에서 차트 데이터 생성
+    const sortedData = Array.from(dataBuffer.entries())
+      .sort(([a], [b]) => a - b) // 시간순 정렬
+      .map(([_, timeData]) => timeData)
+      .filter(data => data.current !== null || data.vibration !== null) // 데이터가 있는 것만
+      .slice(-maxDataPoints); // 최대 데이터 포인트 수 제한
+    
+    setChartData(sortedData);
+    console.log(`📊 차트 데이터 업데이트: ${sortedData.length}개`);
+    
+  }, [dataBuffer, maxDataPoints]);
+
+  // ✨ 상태 카드 스타일링을 위한 상태 변환 함수
+  const getStatusForCard = (status) => {
+    if (status === 'NORMAL' || status === 'normal') return 'normal';
+    if (status === 'ANOMALY' || status === 'anomaly') return 'anomaly';
+    return 'unknown';
+  };
+
+  // ✨ 개선된 커스텀 툴팁
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
         <TooltipContainer>
           <TooltipLabel>{`시간: ${label}`}</TooltipLabel>
-          {payload.map((entry, index) => (
-            <TooltipItem key={index} color={entry.color}>
-              {`${entry.name}: ${entry.value?.toFixed(3)}`}
-              {entry.dataKey.includes('status') && (
-                <TooltipStatus status={entry.value}>
-                  {entry.value === 'normal' ? '정상' : '이상'}
-                </TooltipStatus>
-              )}
-            </TooltipItem>
-          ))}
+          {payload.map((entry, index) => {
+            if (entry.dataKey.includes('threshold')) {
+              return (
+                <TooltipItem key={index} color={entry.color}>
+                  {`${entry.name}: ${entry.value?.toFixed(3)}`}
+                </TooltipItem>
+              );
+            } else if (entry.dataKey === 'current' || entry.dataKey === 'vibration') {
+              return (
+                <TooltipItem key={index} color={entry.color}>
+                  {`${entry.name}: ${entry.value?.toFixed(3)}`}
+                </TooltipItem>
+              );
+            }
+            return null;
+          })}
         </TooltipContainer>
       );
     }
     return null;
   };
-
-  const integratedData = getIntegratedChartData();
 
   return (
     <ChartContainer>
@@ -388,27 +426,27 @@ const SimpleRealTimeChart = ({
         <HeaderLeft>
           <ActivityIcon connected={isConnected} />
           <ChartTitle>{title}</ChartTitle>
-          <ConnectionBadge connected={isConnected}>
+          {/* <ConnectionBadge connected={isConnected}>
             {isConnected ? '연결됨' : '연결 대기'}
-          </ConnectionBadge>
+          </ConnectionBadge> */}
         </HeaderLeft>
         
         <DataPointsInfo>
-          데이터 포인트: {integratedData.length}/{maxDataPoints}
+          데이터 포인트: {chartData.length}/{maxDataPoints}
         </DataPointsInfo>
       </ChartHeader>
 
       {/* 실시간 상태 카드 */}
       <StatusGrid>
         {/* 전류 상태 */}
-        <StatusCard status={currentStats.current.status}>
+        <StatusCard status={getStatusForCard(currentStats.current.status)}>
           <StatusCardHeader>
             <StatusLabel>
               <Zap size={20} />
               <span>용접 전류</span>
             </StatusLabel>
             <StatusIcon>
-              {currentStats.current.status === 'normal' ? 
+              {currentStats.current.status === 'NORMAL' || currentStats.current.status === 'normal' ? 
                 <CheckCircle size={20} color="#10b981" /> : 
                 <AlertTriangle size={20} color="#ef4444" />
               }
@@ -418,19 +456,19 @@ const SimpleRealTimeChart = ({
             {currentStats.current.value.toFixed(3)}
           </StatusValue>
           <StatusConfidence>
-            신뢰도: {(currentStats.current.confidence * 100).toFixed(1)}%
+            신뢰도: {(currentStats.current.confidence * 100).toFixed(1)}% | 임계치: {thresholds.current}
           </StatusConfidence>
         </StatusCard>
 
         {/* 진동 상태 */}
-        <StatusCard status={currentStats.vibration.status}>
+        <StatusCard status={getStatusForCard(currentStats.vibration.status)}>
           <StatusCardHeader>
             <StatusLabel>
               <TrendingUp size={20} />
               <span>진동 레벨</span>
             </StatusLabel>
             <StatusIcon>
-              {currentStats.vibration.status === 'normal' ? 
+              {currentStats.vibration.status === 'NORMAL' || currentStats.vibration.status === 'normal' ? 
                 <CheckCircle size={20} color="#10b981" /> : 
                 <AlertTriangle size={20} color="#ef4444" />
               }
@@ -440,15 +478,15 @@ const SimpleRealTimeChart = ({
             {currentStats.vibration.value.toFixed(3)}
           </StatusValue>
           <StatusConfidence>
-            신뢰도: {(currentStats.vibration.confidence * 100).toFixed(1)}%
+            신뢰도: {(currentStats.vibration.confidence * 100).toFixed(1)}% | 임계치: {thresholds.vibration}
           </StatusConfidence>
         </StatusCard>
       </StatusGrid>
 
-      {/* 실시간 차트 */}
+      {/* ✨ 개선된 실시간 차트 */}
       <ChartWrapper>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={integratedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
               dataKey="time" 
@@ -464,15 +502,25 @@ const SimpleRealTimeChart = ({
             <Tooltip content={<CustomTooltip />} />
             <Legend />
             
-            {/* 임계값 선 */}
+            {/* ✨ 분리된 임계치 선 */}
             <Line 
               type="monotone" 
-              dataKey="threshold" 
+              dataKey="current_threshold" 
               stroke="#F59E0B" 
               strokeWidth={2}
               strokeDasharray="5 5"
               dot={false}
-              name="임계값"
+              name="전류 임계치"
+            />
+            
+            <Line 
+              type="monotone" 
+              dataKey="vibration_threshold" 
+              stroke="#8B5CF6" 
+              strokeWidth={2}
+              strokeDasharray="8 3"
+              dot={false}
+              name="진동 임계치"
             />
             
             {/* 전류 데이터 */}
@@ -484,6 +532,7 @@ const SimpleRealTimeChart = ({
               dot={{ fill: '#EF4444', strokeWidth: 2, r: 4 }}
               activeDot={{ r: 6, fill: '#EF4444' }}
               name="용접 전류"
+              connectNulls={false}
             />
             
             {/* 진동 데이터 */}
@@ -495,6 +544,7 @@ const SimpleRealTimeChart = ({
               dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
               activeDot={{ r: 6, fill: '#3B82F6' }}
               name="진동 레벨"
+              connectNulls={false}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -513,11 +563,15 @@ const SimpleRealTimeChart = ({
           </LegendItem>
           <LegendItem>
             <LegendColor color="#f59e0b" isDashed />
-            <span>임계값</span>
+            <span>전류 임계치 ({thresholds.current})</span>
+          </LegendItem>
+          <LegendItem>
+            <LegendColor color="#8b5cf6" isDashed />
+            <span>진동 임계치 ({thresholds.vibration})</span>
           </LegendItem>
         </LegendContainer>
         <LastUpdateInfo>
-          마지막 업데이트: {integratedData.length > 0 ? integratedData[integratedData.length - 1]?.time : '-'}
+          마지막 업데이트: {chartData.length > 0 ? chartData[chartData.length - 1]?.time : '-'}
         </LastUpdateInfo>
       </ChartFooter>
     </ChartContainer>
