@@ -148,7 +148,15 @@ const StatusBadge = styled.div.withConfig({
   shouldForwardProp: (prop) => !['status'].includes(prop),
 })`
   align-items: center;
-  background-color: ${props => props.status === 'normal' ? '#d4edda' : props.status === 'anomaly' ? '#f8d7da' : '#d8d8d880'};
+  background-color: ${props => {
+    switch(props.status) {
+      case 'normal': return '#d4edda';
+      case 'anomaly': return '#f8d7da';
+      case 'operating': return '#fff3cd';
+      case 'stopped': return '#f8d7da';
+      default: return '#d8d8d880';
+    }
+  }};
   border: 0.5px solid #0000001a;
   border-radius: 2px;
   display: inline-flex;
@@ -163,7 +171,15 @@ const StatusBadge = styled.div.withConfig({
 const BadgeText = styled.div.withConfig({
   shouldForwardProp: (prop) => !['status'].includes(prop),
 })`
-  color: ${props => props.status === 'normal' ? '#155724' : props.status === 'anomaly' ? '#721c24' : '#000000'};
+  color: ${props => {
+    switch(props.status) {
+      case 'normal': return '#155724';
+      case 'anomaly': return '#721c24';
+      case 'operating': return '#856404';
+      case 'stopped': return '#721c24';
+      default: return '#000000';
+    }
+  }};
   font-family: "Roboto", Helvetica;
   font-size: 12px;
   font-weight: 400;
@@ -267,6 +283,13 @@ export const EquipmentList = ({
     return 'unknown';
   };
 
+  const getOperatingStatusType = (equipment) => {
+    if (equipment.operatingStatus === '도장 중') return 'operating';
+    if (equipment.operatingStatus === '정지' || equipment.operatingStatus === '중지') return 'stopped';
+    if (equipment.isOperating) return 'normal';
+    return 'unknown';
+  };
+
   return (
     <StyledEquipmentList>
       <Contents>
@@ -295,8 +318,8 @@ export const EquipmentList = ({
                   <StatusIcon status={getStatusType(equipment)} />
                 </StatusText>
                 
-                <StatusBadge status={getStatusType(equipment)}>
-                  <BadgeText status={getStatusType(equipment)}>
+                <StatusBadge status={getOperatingStatusType(equipment)}>
+                  <BadgeText status={getOperatingStatusType(equipment)}>
                     {equipment.operatingStatus || (equipment.isOperating ? '가동 중' : '정지')}
                   </BadgeText>
                 </StatusBadge>
