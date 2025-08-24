@@ -298,9 +298,9 @@ export const List = ({ className }) => {
   return (
     <StyledList className={`list ${className}`}>
       {/* 관리자 계정 힌트 */}
-      <div className="admin-hint">
+      {/* <div className="admin-hint">
         💡 관리자 테스트: admin / admin123
-      </div>
+      </div> */}
 
       {error && (
         <div className="error-message">

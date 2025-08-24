@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { PageLayout } from '../../components/layout';
 import { EquipmentList } from '../../components/ui/EquipmentList';
-import { ChatBot } from '../../components/ui/ChatBot';
+// ✨ 기존 ChatBot을 DemoChatBot으로 교체
+import { DemoChatBot } from '../../components/ui/ChatBot';
 import SimpleRealTimeChart from '../../components/charts/RealTimeChart/SimpleRealTimeChart';
 import webSocketService from '../../services/WebSocketService';
 
@@ -330,6 +331,71 @@ const SectionTitle = styled.div`
   text-align: center;
 `;
 
+// ✨ 시연 알림 카드 추가
+const DemoNotificationCard = styled.div`
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 24px;
+  border-radius: 12px;
+  margin: 20px 50px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+`;
+
+const DemoTitle = styled.h3`
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+`;
+
+const DemoDescription = styled.p`
+  font-size: 16px;
+  margin: 0 0 16px 0;
+  opacity: 0.9;
+  line-height: 1.6;
+`;
+
+const DemoIssueCard = styled.div`
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  text-align: left;
+`;
+
+const IssueTitle = styled.h4`
+  color: white;
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const IssueDetails = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  font-size: 14px;
+  
+  div {
+    display: flex;
+    justify-content: space-between;
+    
+    strong {
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    span {
+      color: white;
+    }
+  }
+`;
+
 export const VehicleMonitoring = () => {
   // ✅ 상태 관리 (올바른 순서)
   const [isStreamConnected, setIsStreamConnected] = useState(false);
@@ -378,6 +444,17 @@ export const VehicleMonitoring = () => {
       operatingStatus: "가동 중"
     }
   ]);
+
+  // ✨ 현재 이슈 상태 (시연용)
+  const currentIssue = {
+    code: 'WELD-CURRENT_AND_VIBRATION-ANOMALY',
+    name: '용접 전류+진동 복합 이상',
+    location: '차체 공정 - 로봇 용접기 #3',
+    severity: '매우높음',
+    urgency: '즉시 대응 필요',
+    detectedTime: new Date().toLocaleString('ko-KR'),
+    description: '용접 과정에서 전류와 진동이 동시에 비정상적으로 감지되는 복합적 문제상황'
+  };
 
   // ✅ 핸들러 함수들 (올바른 순서)
   const handleWebSocketMessage = useCallback((event) => {
@@ -500,7 +577,42 @@ export const VehicleMonitoring = () => {
       <PageLayout 
         title="차체 공정 모니터링"
         description={`차체 공정 수신 ${isStreamConnected ? '양호 🟢' : '대기 중 ⚪'} | 모니터링 ${isMonitoringConnected ? '연결됨 📊' : '대기 중 ⚪'}`}
-      >          
+      >   
+          {/* ✨ 시연 알림 카드 */}
+          <DemoNotificationCard>
+            <DemoTitle>
+              🎬 AI 챗봇 시연 준비 완료
+            </DemoTitle>
+            <DemoDescription>
+              우측 하단의 챗봇 버튼을 클릭하여 용접 복합 이상에 대한<br />
+              <strong>통합문의 → 안전문의 → 기술문의</strong> 순서로 AI 전문가 상담을 체험하세요.
+            </DemoDescription>
+            
+            <DemoIssueCard>
+              <IssueTitle>
+                ⚡🔧 {currentIssue.name}
+              </IssueTitle>
+              <IssueDetails>
+                <div>
+                  <strong>발생 위치:</strong>
+                  <span>{currentIssue.location}</span>
+                </div>
+                <div>
+                  <strong>심각도:</strong>
+                  <span>{currentIssue.severity}</span>
+                </div>
+                <div>
+                  <strong>상태:</strong>
+                  <span>{currentIssue.urgency}</span>
+                </div>
+                <div>
+                  <strong>감지 시간:</strong>
+                  <span>{currentIssue.detectedTime}</span>
+                </div>
+              </IssueDetails>
+            </DemoIssueCard>
+          </DemoNotificationCard>
+       
           {/* ✨ 실시간 상태가 반영되는 장비 목록 */}
           <EquipmentList 
             title="로봇 용접기 상태 목록"
@@ -642,7 +754,8 @@ export const VehicleMonitoring = () => {
             </CardContent>
           </SimulatorCard>
       </PageLayout>
-      <ChatBot />
+      {/* ✨ 기존 ChatBot을 DemoChatBot으로 교체 */}
+      <DemoChatBot />
     </>
   );
 };
