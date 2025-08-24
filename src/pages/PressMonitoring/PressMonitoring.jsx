@@ -120,7 +120,7 @@ export const PressMonitoring = () => {
         <EquipmentList 
           title="프레스별 상태 목록"
           equipmentData={pressEquipmentData}
-          defaultImage="https://via.placeholder.com/100x100/cccccc/666666?text=Press"
+          defaultImage="/pressmachine.png"
           showConnectionStatus={false}
         />
       </PageLayout>
