@@ -79,6 +79,42 @@ const AttachmentSection = styled.div`
   margin-bottom: 30px;
 `;
 
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-bottom: 30px;
+  padding: 20px 0;
+  border-top: 1px solid #eee;
+`;
+
+const PostActionButton = styled.button`
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  
+  &.edit {
+    background: #007bff;
+    color: white;
+    
+    &:hover {
+      background: #0056b3;
+    }
+  }
+  
+  &.delete {
+    background: #dc3545;
+    color: white;
+    
+    &:hover {
+      background: #c82333;
+    }
+  }
+`;
+
 const AttachmentHeader = styled.h3`
   font-size: 18px;
   color: #333;
@@ -400,12 +436,15 @@ export const PostDetail = () => {
     }
   };
 
-  const handleDelete = () => {
+  const handleEdit = () => {
+    navigate(`/board/edit/${id}`);
+  };
+
+  const handleDelete = async () => {
     if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
       try {
         // 실제 구현에서는 API 호출
-        // await fetch(`/api/posts/${id}`, { method: 'DELETE' });
-        
+        await axios.delete(`/posts/${id}`);
         alert('게시글이 삭제되었습니다.');
         navigate('/board');
       } catch (error) {
@@ -500,6 +539,16 @@ export const PostDetail = () => {
           ))}
         </AttachmentSection>
       )}
+
+      {/* 수정/삭제 버튼 */}
+      <ActionButtons>
+        <PostActionButton className="edit" onClick={handleEdit}>
+          ✏️ 수정
+        </PostActionButton>
+        <PostActionButton className="delete" onClick={handleDelete}>
+          🗑️ 삭제
+        </PostActionButton>
+      </ActionButtons>
 
       <CommentSection>
         <CommentHeader>💬 댓글 ({comments.length})</CommentHeader>
