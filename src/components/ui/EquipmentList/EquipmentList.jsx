@@ -148,7 +148,15 @@ const StatusBadge = styled.div.withConfig({
   shouldForwardProp: (prop) => !['status'].includes(prop),
 })`
   align-items: center;
-  background-color: ${props => props.status === 'normal' ? '#d4edda' : props.status === 'anomaly' ? '#f8d7da' : '#d8d8d880'};
+  background-color: ${props => {
+    switch(props.status) {
+      case 'normal': return '#d4edda';
+      case 'anomaly': return '#f8d7da';
+      case 'operating': return '#d4edda';
+      case 'stopped': return '#f8d7da';
+      default: return '#d8d8d880';
+    }
+  }};
   border: 0.5px solid #0000001a;
   border-radius: 2px;
   display: inline-flex;
@@ -163,7 +171,15 @@ const StatusBadge = styled.div.withConfig({
 const BadgeText = styled.div.withConfig({
   shouldForwardProp: (prop) => !['status'].includes(prop),
 })`
-  color: ${props => props.status === 'normal' ? '#155724' : props.status === 'anomaly' ? '#721c24' : '#000000'};
+  color: ${props => {
+    switch(props.status) {
+      case 'normal': return '#155724';
+      case 'anomaly': return '#721c24';
+      case 'operating': return '#856404';
+      case 'stopped': return '#721c24';
+      default: return '#000000';
+    }
+  }};
   font-family: "Roboto", Helvetica;
   font-size: 12px;
   font-weight: 400;
@@ -217,53 +233,22 @@ const StatusIndicators = styled.div`
   padding: 45px 0px;
 `;
 
-// 샘플 데이터
-const sampleData = [
-  {
-    id: 1,
-    name: "장비 A",
-    title: "CNC 가공기 #001",
-    status: "정상 작동 중",
-    isOperating: true,
-    operatingStatus: "가동 중",
-    manager: "김철수",
-    image: "https://via.placeholder.com/100x100/4CAF50/white?text=CNC",
-    isConnected: true
-  },
-  {
-    id: 2,
-    name: "장비 B", 
-    title: "레이저 절단기 #002",
-    status: "이상 감지",
-    isOperating: false,
-    operatingStatus: "정지",
-    manager: "이영희",
-    image: "https://via.placeholder.com/100x100/F44336/white?text=LASER",
-    isConnected: true
-  },
-  {
-    id: 3,
-    name: "장비 C",
-    title: "3D 프린터 #003", 
-    status: "정상 작동 중",
-    isOperating: true,
-    operatingStatus: "가동 중",
-    manager: "박민수",
-    image: "https://via.placeholder.com/100x100/2196F3/white?text=3D",
-    isConnected: false
-  }
-];
-
-export const EquipmentList = ({ 
+export const EquipmentList = ({
   title = "장비 상태 목록",
-  equipmentData = sampleData,
+  equipmentData = [],
   defaultImage = "https://c.animaapp.com/DYKcRidV/img/image-13-2@2x.png",
   showConnectionStatus = true
 }) => {
-  
+
   const getStatusType = (equipment) => {
-    if (equipment.isOperating && equipment.status.includes('정상')) return 'normal';
-    if (!equipment.isOperating || equipment.status.includes('이상')) return 'anomaly';
+    if (equipment.status === '결함감지' || equipment.status === '이상') return 'anomaly';
+    if (equipment.status === '정상') return 'normal';
+    return 'unknown';
+  };
+
+  const getOperatingStatusType = (equipment) => {
+    if (equipment.operatingStatus === '도장 중' || equipment.operatingStatus === '활성') return 'operating';
+    if (equipment.operatingStatus === '정지' || equipment.operatingStatus === '중지' || equipment.operatingStatus === '비활성' || equipment.operatingStatus === '이상 탐지' || equipment.operatingStatus === '이상 감지') return 'stopped';
     return 'unknown';
   };
 
@@ -271,7 +256,7 @@ export const EquipmentList = ({
     <StyledEquipmentList>
       <Contents>
         <SectionTitle>{title}</SectionTitle>
-        
+
         <EquipmentGrid>
           {equipmentData.map((equipment) => (
             <EquipmentCard key={equipment.id}>
@@ -289,14 +274,14 @@ export const EquipmentList = ({
                 <EquipmentTitle>
                   {equipment.title}
                 </EquipmentTitle>
-                
+
                 <StatusText>
                   상태: {equipment.status}
                   <StatusIcon status={getStatusType(equipment)} />
                 </StatusText>
-                
-                <StatusBadge status={getStatusType(equipment)}>
-                  <BadgeText status={getStatusType(equipment)}>
+
+                <StatusBadge status={getOperatingStatusType(equipment)}>
+                  <BadgeText status={getOperatingStatusType(equipment)}>
                     {equipment.operatingStatus || (equipment.isOperating ? '가동 중' : '정지')}
                   </BadgeText>
                 </StatusBadge>

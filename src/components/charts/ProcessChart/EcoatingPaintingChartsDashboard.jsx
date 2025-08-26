@@ -23,7 +23,7 @@ const EcoatingPaintingChartsDashboard = ({ stats }) => {
   // 장비별 최신 데이터
   const getLatestDataByMachine = () => {
     return ['PAINT-MCH-001', 'PAINT-MCH-002'].map((machineId, index) => {
-      const machineName = [`도장기 1`, `도장기 2`][index];
+      const machineName = [`전착조 1`, `전착조 2`][index];
       
       const machineData = stats[machineId] || {
         totalOps: 0,
@@ -311,7 +311,7 @@ const EcoatingPaintingChartsDashboard = ({ stats }) => {
                         ...(machine.qualityRate >= 95 ? styles.badgeGreen : 
                             machine.qualityRate >= 85 ? styles.badgeYellow : styles.badgeRed)
                       }}>
-                        {machine.qualityRate >= 95 ? '정상' : machine.qualityRate >= 85 ? '주의' : '이상'}
+                        {machine.qualityRate >= 80 ? '정상' : machine.qualityRate >= 60 ? '주의' : '이상'}
                       </span>
                     </td>
                   </tr>
