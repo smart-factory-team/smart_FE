@@ -202,7 +202,7 @@ export const PaintingMonitoring = () => {
         isOperating: !(equipment1 && equipment1.issue), // 결함 있으면 비활성
         manager: "관리자",
         isConnected: isEquipmentConnected,
-        operatingStatus: equipment1 && equipment1.issue ? '이상 감지' : '활성',
+        operatingStatus: !isEquipmentConnected ? '비활성' : (equipment1 && equipment1.issue ? '이상 감지' : '활성'),
         image: "https://i.imgur.com/3swWYFe.png"
       },
       {
@@ -213,7 +213,7 @@ export const PaintingMonitoring = () => {
         isOperating: !(equipment2 && equipment2.issue),
         manager: "관리자",
         isConnected: isEquipmentConnected,
-        operatingStatus: equipment2 && equipment2.issue ? '이상 감지' : '활성',
+        operatingStatus: !isEquipmentConnected ? '비활성' : (equipment2 && equipment2.issue ? '이상 감지' : '활성'),
         image: "https://i.imgur.com/3swWYFe.png"
       },
       {
