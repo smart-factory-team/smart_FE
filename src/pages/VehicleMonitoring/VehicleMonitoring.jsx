@@ -579,7 +579,7 @@ export const VehicleMonitoring = () => {
         description={`차체 공정 수신 ${isStreamConnected ? '양호 🟢' : '대기 중 ⚪'} | 모니터링 ${isMonitoringConnected ? '연결됨 📊' : '대기 중 ⚪'}`}
       >   
           {/* ✨ 시연 알림 카드 */}
-          <DemoNotificationCard>
+          {/* <DemoNotificationCard>
             <DemoTitle>
               🎬 AI 챗봇 시연 준비 완료
             </DemoTitle>
@@ -612,7 +612,7 @@ export const VehicleMonitoring = () => {
               </IssueDetails>
             </DemoIssueCard>
           </DemoNotificationCard>
-       
+        */}
           {/* ✨ 실시간 상태가 반영되는 장비 목록 */}
           <EquipmentList 
             title="로봇 용접기 상태 목록"
