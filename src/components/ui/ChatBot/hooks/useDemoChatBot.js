@@ -1,5 +1,5 @@
 // ===============================
-// useDemoChatBot.js - 깨끗한 새 버전
+// useDemoChatBot.js - 응답 포맷팅 수정 (잘림 문제 해결)
 // src/components/ui/ChatBot/hooks/useDemoChatBot.js
 // ===============================
 
@@ -150,7 +150,7 @@ export const useDemoChatBot = () => {
       
       setMessages([welcomeMessage]);
       
-      // 자동 질문 실행 (인라인 함수로 의존성 제거)
+      // 자동 질문 실행
       setTimeout(async () => {
         setTypingEffect(true);
         
@@ -172,7 +172,7 @@ export const useDemoChatBot = () => {
           
           const response = await callApi(endpoint, payload);
           
-          // 봇 응답
+          // 🔧 개선된 응답 포맷팅
           const botMessage = {
             id: Date.now() + 1,
             text: formatResponse(response, expert.id),
@@ -207,8 +207,6 @@ export const useDemoChatBot = () => {
       setIsLoading(false);
     }
   }, [selectedIssue]);
-
-  // 자동 질문 함수 제거 (위에서 인라인으로 처리)
 
   // 수동 메시지 전송
   const handleSendMessage = useCallback(async () => {
@@ -349,7 +347,10 @@ export const useDemoChatBot = () => {
   };
 };
 
-// 헬퍼 함수들
+// ===============================
+// 🔧 헬퍼 함수들 - 응답 포맷팅 개선
+// ===============================
+
 function getQuestionText(expertId, issue) {
   const questions = {
     'multi-agent': `안녕하세요. ${issue.name} 문제에 대해 긴급히 문의드립니다. 여러 전문가의 종합적인 분석과 즉시 조치사항을 제공해주세요.`,
@@ -384,29 +385,87 @@ function getApiPayload(expertId, sessionId, message, issueId) {
   }
 }
 
+// 🔧 개선된 응답 포맷팅 함수
 function formatResponse(response, expertId) {
-  if (expertId === 'multi-agent' && response.executive_summary) {
-    let text = `📋 **종합 분석 요약**\n${response.executive_summary}\n\n`;
+  console.log('🔍 Raw API Response:', response); // 디버깅용
+  
+  if (expertId === 'multi-agent') {
+    let text = '';
     
+    // 📋 종합 분석 요약
+    if (response.executive_summary) {
+      text += `📋 **종합 분석 요약**\n${response.executive_summary}\n\n`;
+    }
+    
+    // 🚨 즉시 조치사항
     if (response.immediate_actions?.length > 0) {
       text += `🚨 **즉시 조치사항**\n`;
       response.immediate_actions.forEach((action, index) => {
-        text += `${index + 1}. ${action.action} [${action.priority}]\n`;
+        text += `${index + 1}. ${action.action}`;
+        if (action.priority) {
+          text += ` [${action.priority}]`;
+        }
+        text += '\n';
       });
       text += '\n';
     }
     
-    if (response.cost_estimation?.total) {
-      text += `💰 **예상 비용**: ${response.cost_estimation.total}\n`;
+    // 💰 예상 비용 - 개선된 포맷팅
+    if (response.cost_estimation) {
+      text += `💰 **예상 비용**\n`;
+      
+      if (typeof response.cost_estimation === 'string') {
+        // 문자열인 경우
+        text += `${response.cost_estimation}\n\n`;
+      } else if (typeof response.cost_estimation === 'object') {
+        // 객체인 경우
+        if (response.cost_estimation.total) {
+          text += `총 예상 비용: ${response.cost_estimation.total}\n`;
+        }
+        if (response.cost_estimation.parts) {
+          text += `부품비: ${response.cost_estimation.parts}\n`;
+        }
+        if (response.cost_estimation.labor) {
+          text += `인건비: ${response.cost_estimation.labor}\n`;
+        }
+        if (response.cost_estimation.breakdown) {
+          text += `세부 내역: ${response.cost_estimation.breakdown}\n`;
+        }
+        text += '\n';
+      }
     }
     
-    if (response.confidence_level) {
-      const percent = Math.round(response.confidence_level * 100);
-      text += `🎯 **신뢰도**: ${percent}%`;
+    // 🎯 신뢰도
+    if (response.confidence_level !== undefined && response.confidence_level !== null) {
+      let percent;
+      if (response.confidence_level <= 1) {
+        // 0~1 사이의 값인 경우 (0.85 -> 85%)
+        percent = Math.round(response.confidence_level * 100);
+      } else {
+        // 이미 퍼센트 값인 경우 (85 -> 85%)
+        percent = Math.round(response.confidence_level);
+      }
+      text += `🎯 **신뢰도**: ${percent}%\n`;
     }
     
-    return text;
+    // 👥 참여 전문가들
+    if (response.participating_agents?.length > 0) {
+      text += `👥 **참여 전문가**: ${response.participating_agents.join(', ')}\n`;
+    }
+    
+    // ⏱️ 처리 시간
+    if (response.processing_time) {
+      text += `⏱️ **분석 시간**: ${response.processing_time}초`;
+    }
+    
+    return text.trim();
   }
   
-  return response.response || '응답을 받았습니다.';
+  // GPT/Gemini 응답
+  if (response.response) {
+    return response.response;
+  }
+  
+  // 기본 응답
+  return response.message || '응답을 받았습니다.';
 }
