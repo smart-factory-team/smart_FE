@@ -6,7 +6,7 @@ import { PressMonitoring } from '../pages/PressMonitoring';
 import { VehicleMonitoring } from '../pages/VehicleMonitoring';
 import { PaintingMonitoring } from '../pages/PaintingMonitoring';
 import { AssemblyMonitoring } from '../pages/AssemblyMonitoring';
-import { Board, PostDetail, PostCreate } from '../pages/Board';
+import { Board, PostDetail, PostCreate, PostEdit } from '../pages/Board';
 import { MyPage } from '../pages/MyPage';
 import { Home } from '../pages/Home/Home';
 
@@ -40,6 +40,7 @@ export const AppRouter = () => {
               <Route path="/assembly" element={<AssemblyMonitoring />} />
               <Route path="/board" element={<Board />} />
               <Route path="/board/create" element={<PostCreate />} />
+              <Route path="/board/edit/:id" element={<PostEdit />} />
               <Route path="/board/:id" element={<PostDetail />} />
               <Route path="/mypage" element={<MyPage />} />
               
