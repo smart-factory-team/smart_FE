@@ -9,9 +9,7 @@ class ApiClient {
 
   async request(endpoint, options = {}) {
     // baseURL 처리 개선
-    const url = this.baseURL 
-      ? `${this.baseURL}${endpoint}` 
-      : endpoint;
+    const url = endpoint;
     
     const defaultHeaders = {
       'Content-Type': 'application/json',
