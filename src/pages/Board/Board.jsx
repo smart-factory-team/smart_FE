@@ -247,9 +247,10 @@ export const Board = () => {
     try {
       setLoading(true);
       const response = await axios.get('/posts');
-      // API 응답이 배열인지 확인하고, 배열이 아니면 빈 배열로 설정
-      const postsData = Array.isArray(response.data._embedded.posts) ? response.data._embedded.posts : [];
-      setPosts(postsData);
+      // API 응답 구조를 안전하게 확인
+      console.log(response);
+      const postsData = response.data?._embedded?.posts || response.data || [];
+      setPosts(Array.isArray(postsData) ? postsData : []);
     } catch (error) {
       console.error('Failed to fetch posts:', error);
       // 에러 발생 시 빈 배열로 설정
