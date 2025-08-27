@@ -4,7 +4,7 @@ import { PageLayout } from '../../components/layout';
 import { EquipmentList } from '../../components/ui/EquipmentList';
 import { ChatBot } from '../../components/ui/ChatBot';
 import EcoatingPaintingChartsDashboard from '../../components/charts/ProcessChart/EcoatingPaintingChartsDashboard';
-import webSocketService from '../../services/WebSocketService';
+import paintingWebSocketService from '../../services/PaintingWebSocketService';
 import { usePaintingSurfaceDefect } from '../../hooks/usePaintingSurfaceDefect';
 
 // 내 서비스 (설비) API 경로
@@ -277,11 +277,11 @@ export const PaintingMonitoring = () => {
   useEffect(() => {
     const gatewayHost = window.location.hostname.replace('3000-', '8088-');
     const monitoringWsUrl = `wss://${gatewayHost}/ws/monitoring-data`;
-    webSocketService.connectMonitoring(monitoringWsUrl);
-    const removeListener = webSocketService.addMonitoringListener(handleMonitoringMessage);
+    paintingWebSocketService.paintingConnectMonitoring(monitoringWsUrl);
+    const removeListener = paintingWebSocketService.paintingAddMonitoringListener(handleMonitoringMessage);
     return () => {
       removeListener();
-      webSocketService.disconnectMonitoring();
+      paintingWebSocketService.paintingDisconnectMonitoring();
     };
   }, [handleMonitoringMessage]);
 
