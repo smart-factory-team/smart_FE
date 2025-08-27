@@ -1,63 +1,16 @@
 // ===============================
-// 1. useChatBot.jsx (API 제거 버전)
+// useChatBot.jsx - 수정된 API 형식 적용
 // src/components/ui/ChatBot/hooks/useChatBot.jsx
 // ===============================
 
-import { useState } from 'react';
-
-// Mock 응답 데이터
-const MOCK_RESPONSES = {
-  'multi-agent': [
-    `📋 **요약**
-용접 전류+진동 복합 이상이 감지되었습니다. 즉시 대응이 필요한 상황입니다.
-
-🚨 **즉시 조치사항**
-1. 용접 작업 즉시 중단 [긴급]
-2. 전극 상태 점검 (소요시간: 15분) [높음]
-3. 진동 측정 및 원인 파악 (소요시간: 30분) [높음]
-
-🔧 **상세 해결방안**
-**1차 점검** (예상시간: 1시간)
-  • 전극 마모 상태 확인
-  • 접촉부 청소 및 정렬
-  • 진동 센서 캘리브레이션
-
-**2차 수리** (예상시간: 2-3시간)  
-  • 필요시 전극 교체
-  • 기계적 고정부 점검
-  • 전기 연결부 재정비
-
-⚠️ **안전 주의사항**
-• 작업 전 전원 완전 차단 필수
-• 개인보호장비 착용
-• 2인 1조 작업 진행
-
-💰 **예상 비용**
-• 부품비: 50,000 - 150,000원
-• 인건비: 200,000원
-• 총 비용: 250,000 - 350,000원
-
-🎯 **신뢰도**: 94%
-👥 **참여 전문가**: 용접전문가, 진동분석전문가, 전기전문가
-⏱️ **분석 시간**: 2.3초`,
-    
-    "네, 추가로 궁금한 점이 있으시면 언제든 문의해주세요. 정기 점검 주기나 예방 방법에 대해서도 안내해드릴 수 있습니다.",
-    
-    "예방을 위해서는 주 1회 전극 상태 점검과 월 1회 진동 측정을 권장합니다. 조기 발견 시 비용을 80% 절약할 수 있습니다."
-  ],
-  'safety': [
-    "안전 관련 문의에 대해 GPT 전문가가 답변드리겠습니다. 작업자의 안전이 최우선입니다.",
-    "개인보호장비 착용과 안전 절차 준수가 중요합니다.",
-    "추가 안전 문의사항이 있으시면 언제든 말씀해주세요."
-  ],
-  'technical': [
-    "기술적 문제에 대해 Gemini 전문가가 상세히 분석해드리겠습니다.",
-    "설비의 기술적 사양과 작동 원리를 바탕으로 해결책을 제시합니다.",
-    "기술 문서나 매뉴얼이 필요하시면 안내해드릴 수 있습니다."
-  ]
-};
+import { useState, useCallback, useRef, useEffect } from 'react';
+import chatApi from '../services/chatApi';
+import { handleChatbotError, logError } from '../utils/errorHandler';
 
 export const useChatBot = () => {
+  // ===============================
+  // 1. 기본 상태 관리
+  // ===============================
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState('category');
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -66,136 +19,467 @@ export const useChatBot = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [responseIndex, setResponseIndex] = useState(0);
+  
+  // ===============================
+  // 2. API 연동 상태 관리
+  // ===============================
+  const [apiConnected, setApiConnected] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState('idle');
+  const [reportAvailable, setReportAvailable] = useState(false);
+  const [lastError, setLastError] = useState(null);
+  
+  // ===============================
+  // 3. 성능 최적화를 위한 ref들
+  // ===============================
+  const isProcessingRef = useRef(false);
+  const abortControllerRef = useRef(null);
+  const isComponentMountedRef = useRef(true);
 
-  const toggleChat = () => {
-    setIsOpen(!isOpen);
-    if (!isOpen) {
-      resetChat();
-    }
-  };
-
-  const resetChat = () => {
-    setCurrentStep('category');
-    setSelectedCategory(null);
-    setSelectedIssue(null);
-    setSessionId(null);
-    setMessages([]);
-    setInputValue('');
-    setIsLoading(false);
-    setResponseIndex(0);
-  };
-
-  // Mock 세션 생성
-  const createSession = async () => {
-    // 가짜 지연시간
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return `mock_session_${Date.now()}`;
-  };
-
-  // 카테고리 선택 처리
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
-    setCurrentStep('issue');
-  };
-
-  // 이슈 선택 처리 (Mock 버전)
-  const handleIssueSelect = async (issue) => {
-    setIsLoading(true);
+  // ===============================
+  // 4. 컴포넌트 언마운트 시 정리
+  // ===============================
+  useEffect(() => {
+    isComponentMountedRef.current = true;
     
+    return () => {
+      isComponentMountedRef.current = false;
+      
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // ===============================
+  // 5. 상태 업데이트 안전 함수
+  // ===============================
+  const safeSetState = useCallback((setter) => {
+    if (isComponentMountedRef.current) {
+      setter();
+    }
+  }, []);
+
+  // ===============================
+  // 6. API 연결 확인 (먼저 정의)
+  // ===============================
+  const checkApiConnection = useCallback(async () => {
     try {
-      const newSessionId = await createSession();
+      const isHealthy = await chatApi.checkApiHealth();
       
-      setSelectedIssue(issue);
-      setSessionId(newSessionId);
-      setCurrentStep('chat');
-      
-      // Mock 환영 메시지
-      setMessages([
-        {
-          id: 1,
-          text: `안녕하세요! ${selectedCategory.name} 전문가입니다. 
-
-현재 감지된 이슈: ${issue.name}
-심각도: ${issue.severity}
-상태: ${issue.urgency}
-
-이 문제에 대해 상세한 분석과 해결 방안을 제공해드리겠습니다. 추가적으로 궁금한 사항이 있으시면 언제든 문의해주세요.`,
-          isUser: false,
-          timestamp: new Date()
+      safeSetState(() => {
+        setApiConnected(isHealthy);
+        
+        if (!isHealthy) {
+          setLastError({
+            type: 'API_CONNECTION_ERROR',
+            message: 'API 서버에 연결할 수 없습니다.',
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          setLastError(null);
+          console.log('✅ API Health Check OK');
         }
-      ]);
+      });
 
     } catch (error) {
-      console.error('이슈 선택 오류:', error);
-      alert('오류가 발생했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsLoading(false);
+      console.error('API connection check failed:', error);
+      
+      safeSetState(() => {
+        setApiConnected(false);
+        setLastError({
+          type: 'API_CONNECTION_ERROR',
+          message: 'API 서버 연결 확인 중 오류가 발생했습니다.',
+          timestamp: new Date().toISOString()
+        });
+      });
     }
-  };
+  }, [safeSetState]);
 
-  // Mock 메시지 전송 처리
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading || !sessionId || !selectedCategory) return;
+  // ===============================
+  // 7. 기본 챗봇 제어 함수
+  // ===============================
+  const resetChat = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    safeSetState(() => {
+      setCurrentStep('category');
+      setSelectedCategory(null);
+      setSelectedIssue(null);
+      setSessionId(null);
+      setMessages([]);
+      setInputValue('');
+      setIsLoading(false);
+      setSessionStatus('idle');
+      setReportAvailable(false);
+      setLastError(null);
+      isProcessingRef.current = false;
+    });
+  }, [safeSetState]);
+
+  const toggleChat = useCallback(() => {
+    setIsOpen(prev => {
+      const newIsOpen = !prev;
+      if (newIsOpen) {
+        resetChat();
+        setTimeout(() => {
+          if (isComponentMountedRef.current) {
+            checkApiConnection();
+          }
+        }, 100);
+      }
+      return newIsOpen;
+    });
+  }, [checkApiConnection, resetChat]); // 🔧 의존성 추가
+
+  // ===============================
+  // 8. 카테고리 선택 처리
+  // ===============================
+  const handleCategorySelect = useCallback(async (category) => {
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    setLastError(null);
+    
+    try {
+      if (!apiConnected) {
+        await checkApiConnection();
+      }
+
+      safeSetState(() => {
+        setSelectedCategory(category);
+        setCurrentStep('issue');
+      });
+
+      console.log(`📂 Category selected: ${category.name} (${category.id})`);
+      
+    } catch (error) {
+      const processedError = handleChatbotError(error, 'category_select');
+      safeSetState(() => {
+        setLastError(processedError);
+      });
+      logError(processedError, 'useChatBot.handleCategorySelect');
+    } finally {
+      safeSetState(() => {
+        setIsLoading(false);
+      });
+    }
+  }, [isLoading, apiConnected, checkApiConnection, safeSetState]);
+
+  // ===============================
+  // 9. 이슈 선택 및 챗봇 세션 시작
+  // ===============================
+  const handleIssueSelect = useCallback(async (issue) => {
+    if (isProcessingRef.current || isLoading) return;
+    isProcessingRef.current = true;
+    
+    setIsLoading(true);
+    setLastError(null);
+
+    try {
+      console.log(`🎯 Starting chat session for issue: ${issue.name}`);
+      
+      // 이슈 기반 챗봇 세션 시작
+      const sessionResult = await chatApi.startChatFromIssue(issue, selectedCategory.id);
+
+      if (!sessionResult.success) {
+        throw new Error('Failed to start chat session');
+      }
+
+      const newSessionId = sessionResult.sessionId;
+      const initialResponse = sessionResult.data.initial_response;
+      
+      safeSetState(() => {
+        setSessionId(newSessionId);
+        setSelectedIssue(issue);
+        setSessionStatus('active');
+        setCurrentStep('chat');
+
+        // 초기 메시지들 설정
+        const messages = [
+          {
+            id: Date.now(),
+            text: `안녕하세요. ${issue.name} 문제에 대해 문의드립니다.`,
+            isUser: true,
+            timestamp: new Date()
+          }
+        ];
+
+        // API 응답에 따라 봇 메시지 추가
+        if (initialResponse) {
+          let botMessageText = '';
+          
+          // /chat/test 응답 형식 처리
+          if (initialResponse.executive_summary) {
+            botMessageText = `📋 **요약**\n${initialResponse.executive_summary}\n\n`;
+            
+            if (initialResponse.immediate_actions && initialResponse.immediate_actions.length > 0) {
+              botMessageText += `🚨 **즉시 조치사항**\n`;
+              initialResponse.immediate_actions.forEach(action => {
+                botMessageText += `${action.step}. ${action.action} [${action.priority}]\n`;
+              });
+            }
+            
+            if (initialResponse.cost_estimation) {
+              botMessageText += `\n💰 **예상 비용**\n• 총 비용: ${initialResponse.cost_estimation.total}`;
+            }
+            
+            if (initialResponse.confidence_level) {
+              botMessageText += `\n\n🎯 **신뢰도**: ${initialResponse.confidence_level}%`;
+            }
+          } else if (initialResponse.response) {
+            // GPT/Gemini 응답 형식
+            botMessageText = initialResponse.response;
+          } else {
+            botMessageText = '응답을 받았습니다. 추가 문의사항이 있으시면 말씀해주세요.';
+          }
+
+          messages.push({
+            id: Date.now() + 1,
+            text: botMessageText,
+            isUser: false,
+            timestamp: new Date(),
+            metadata: initialResponse
+          });
+        }
+
+        setMessages(messages);
+      });
+
+      console.log(`✅ Chat session started: ${newSessionId}`);
+
+    } catch (error) {
+      const processedError = handleChatbotError(error, 'session_create');
+      safeSetState(() => {
+        setLastError(processedError);
+        
+        if (processedError.chatbotResponse) {
+          setMessages([processedError.chatbotResponse]);
+          setCurrentStep('chat');
+        }
+      });
+      
+      logError(processedError, 'useChatBot.handleIssueSelect');
+    } finally {
+      isProcessingRef.current = false;
+      safeSetState(() => {
+        setIsLoading(false);
+      });
+    }
+  }, [isLoading, selectedCategory, safeSetState]);
+
+  // ===============================
+  // 10. 메시지 전송 처리
+  // ===============================
+  const handleSendMessage = useCallback(async () => {
+    const trimmedInput = inputValue.trim();
+    if (!trimmedInput || isLoading || !sessionId || !selectedCategory) return;
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
 
     const userMessage = {
       id: Date.now(),
-      text: inputValue,
+      text: trimmedInput,
       isUser: true,
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsLoading(true);
+    // UI 즉시 업데이트
+    safeSetState(() => {
+      setMessages(prev => [...prev, userMessage]);
+      setInputValue('');
+      setIsLoading(true);
+      setLastError(null);
+    });
 
     try {
-      // Mock API 지연 시뮬레이션
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Mock 응답 선택
-      const responses = MOCK_RESPONSES[selectedCategory.id] || ['Mock 응답입니다.'];
-      const currentResponse = responses[responseIndex % responses.length];
+      console.log(`💬 Sending message to session: ${sessionId}`);
       
+      // 🔧 더 구체적인 로딩 메시지
+      const loadingMessage = {
+        id: Date.now() + 0.5,
+        text: '🤖 AI 전문가들이 분석 중입니다... (최대 2분 소요)',
+        isUser: false,
+        timestamp: new Date(),
+        isLoading: true
+      };
+      
+      safeSetState(() => {
+        setMessages(prev => [...prev, loadingMessage]);
+      });
+      
+      const response = await chatApi.continueChatSession(sessionId, userMessage.text, selectedCategory.id);
+
+      if (!response.success) {
+        throw new Error('Failed to send message');
+      }
+
+      // 응답 메시지 처리
+      let botMessageText = '';
+      const responseData = response.data;
+
+      // 📋 /chat/test 응답의 풍부한 데이터 활용
+      if (responseData.executive_summary) {
+        botMessageText = `📋 **요약**\n${responseData.executive_summary}\n\n`;
+        
+        // 🚨 즉시 조치사항
+        if (responseData.immediate_actions && responseData.immediate_actions.length > 0) {
+          botMessageText += `🚨 **즉시 조치사항**\n`;
+          responseData.immediate_actions.forEach((action, index) => {
+            botMessageText += `${index + 1}. ${action.action} [${action.priority}]\n`;
+          });
+          botMessageText += '\n';
+        }
+        
+        // 🛡️ 안전 주의사항
+        if (responseData.safety_precautions && responseData.safety_precautions.length > 0) {
+          botMessageText += `🛡️ **안전 주의사항**\n`;
+          responseData.safety_precautions.forEach(precaution => {
+            botMessageText += `• ${precaution}\n`;
+          });
+          botMessageText += '\n';
+        }
+        
+        // 💰 비용 정보
+        if (responseData.cost_estimation) {
+          botMessageText += `💰 **예상 비용**\n`;
+          if (responseData.cost_estimation.parts) {
+            botMessageText += `• 부품비: ${responseData.cost_estimation.parts}\n`;
+          }
+          if (responseData.cost_estimation.labor) {
+            botMessageText += `• 인건비: ${responseData.cost_estimation.labor}\n`;
+          }
+          if (responseData.cost_estimation.total) {
+            botMessageText += `• 총 비용: ${responseData.cost_estimation.total}\n`;
+          }
+          botMessageText += '\n';
+        }
+        
+        // 🎯 신뢰도 및 전문가 정보
+        if (responseData.confidence_level) {
+          const confidencePercent = Math.round(responseData.confidence_level * 100);
+          botMessageText += `🎯 **신뢰도**: ${confidencePercent}%\n`;
+        }
+        
+        if (responseData.participating_agents && responseData.participating_agents.length > 0) {
+          botMessageText += `👥 **참여 전문가**: ${responseData.participating_agents.join(', ')}\n`;
+        }
+        
+        if (responseData.processing_time) {
+          botMessageText += `⏱️ **분석 시간**: ${responseData.processing_time.toFixed(1)}초`;
+        }
+        
+      } else if (responseData.response) {
+        // GPT/Gemini 단순 응답 형식
+        botMessageText = responseData.response;
+      } else {
+        botMessageText = '응답을 받았습니다.';
+      }
+
       const botMessage = {
         id: Date.now() + 1,
-        text: currentResponse,
+        text: botMessageText,
         isUser: false,
-        timestamp: new Date()
+        timestamp: new Date(),
+        metadata: responseData
       };
 
-      setMessages(prev => [...prev, botMessage]);
-      setResponseIndex(prev => prev + 1);
+      safeSetState(() => {
+        // 🔧 로딩 메시지 제거 후 실제 응답 추가
+        setMessages(prev => {
+          const filteredMessages = prev.filter(msg => !msg.isLoading);
+          return [...filteredMessages, botMessage];
+        });
+      });
+
+      console.log(`✅ Message sent and response received`);
 
     } catch (error) {
-      console.error('메시지 전송 오류:', error);
+      const processedError = handleChatbotError(error, 'message_send');
+      safeSetState(() => {
+        setLastError(processedError);
+
+        // 🔧 로딩 메시지 제거
+        setMessages(prev => {
+          const filteredMessages = prev.filter(msg => !msg.isLoading);
+          if (processedError.chatbotResponse) {
+            return [...filteredMessages, processedError.chatbotResponse];
+          }
+          return filteredMessages;
+        });
+      });
       
-      const errorMessage = {
-        id: Date.now() + 1,
-        text: '죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요.',
-        isUser: false,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      logError(processedError, 'useChatBot.handleSendMessage');
     } finally {
-      setIsLoading(false);
+      isProcessingRef.current = false;
+      safeSetState(() => {
+        setIsLoading(false);
+      });
     }
-  };
+  }, [inputValue, sessionId, selectedCategory, isLoading, safeSetState]);
+
+  // ===============================
+  // 11. 보고서 다운로드 처리 (간단 버전)
+  // ===============================
+  const handleDownloadReport = useCallback(async () => {
+    if (!sessionId) return;
+
+    try {
+      console.log('📄 보고서 다운로드 시도:', sessionId);
+      
+      // 임시: 보고서 다운로드 시뮬레이션
+      alert(`세션 ${sessionId}의 보고서 다운로드를 시작합니다.\n(실제 구현은 준비 중입니다.)`);
+      
+      // 실제 구현 시:
+      // const result = await reportApi.downloadAndSaveReport(sessionId);
+      
+    } catch (error) {
+      console.error('보고서 다운로드 에러:', error);
+      alert('보고서 다운로드 중 오류가 발생했습니다.');
+    }
+  }, [sessionId]);
+
+  // ===============================
+  // 12. 세션 완료 처리 (간단 버전)
+  // ===============================
+  const handleSessionCompletion = useCallback(async () => {
+    if (!sessionId) return;
+
+    safeSetState(() => {
+      setSessionStatus('completed');
+      setReportAvailable(true);
+      
+      const completionMessage = {
+        id: Date.now(),
+        text: '상담이 완료되었습니다. 새로운 상담을 시작하거나 다른 문의를 하실 수 있습니다.',
+        isUser: false,
+        timestamp: new Date(),
+        isCompletion: true
+      };
+      
+      setMessages(prev => [...prev, completionMessage]);
+    });
+  }, [sessionId, safeSetState]);
 
   // Enter 키 처리
-  const handleKeyPress = (e) => {
+  const handleKeyPress = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
-  };
+  }, [handleSendMessage]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     setInputValue(e.target.value);
-  };
+  }, []);
 
+  // ===============================
+  // 14. Return Values
+  // ===============================
   return {
-    // States
+    // 기본 상태
     isOpen,
     currentStep,
     selectedCategory,
@@ -205,7 +489,13 @@ export const useChatBot = () => {
     inputValue,
     isLoading,
     
-    // Actions
+    // API 연동 상태
+    apiConnected,
+    sessionStatus,
+    reportAvailable,
+    lastError,
+    
+    // 액션 함수들
     toggleChat,
     resetChat,
     handleCategorySelect,
@@ -213,6 +503,11 @@ export const useChatBot = () => {
     handleSendMessage,
     handleKeyPress,
     handleInputChange,
-    setCurrentStep
+    handleSessionCompletion, // 🔧 추가
+    handleDownloadReport, // 🔧 추가
+    setCurrentStep,
+    
+    // 유틸리티
+    checkApiConnection
   };
 };
