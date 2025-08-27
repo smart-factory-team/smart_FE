@@ -27,15 +27,53 @@ const StatusCard = styled.div`
   }
 `;
 
+const IntroSection = styled.div`
+  margin-top: 60px;
+  padding: 40px 60px;
+`;
+
+const IntroTitle = styled.h2`
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 30px;
+  color: #212529;
+`;
+
+const MetricsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+`;
+
+const MetricCard = styled.div`
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  padding: 30px 20px;
+  text-align: center;
+
+  h3 {
+    font-size: 2rem;
+    margin: 0;
+    color: #007bff;
+  }
+
+  p {
+    margin-top: 10px;
+    font-size: 1rem;
+    color: #495057;
+  }
+`;
+
 export const Dashboard = () => {
   return (
     <PageLayout 
       title="통합 모니터링 대시보드"
       description="전체 공정 상태를 종합적으로 모니터링합니다."
-      footerTitle="전체 공정 통합 현황"
-      footerDescription="통합 대시보드 차트가 표시될 예정입니다."
       showFooter={true}
     >
+      {/* 공정별 카드 */}
       <OverviewGrid>
         <StatusCard status="normal">
           <h3>🤖 차체 공정</h3>
@@ -54,7 +92,7 @@ export const Dashboard = () => {
         <StatusCard status="normal">
           <h3>🎨 도장 공정</h3>
           <p>상태: 점검중</p>
-          <p>도장부스: 2대 가동</p>
+          <p>도장부스: 3대 가동</p>
           <p>효율: 87%</p>
         </StatusCard>
 
@@ -65,6 +103,34 @@ export const Dashboard = () => {
           <p>효율: 92%</p>
         </StatusCard>
       </OverviewGrid>
+
+      {/* 소개 + 핵심 지표 섹션 */}
+      <IntroSection>
+        <IntroTitle>🚗 프로젝트 소개 & 핵심 지표</IntroTitle>
+        <p style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto 30px auto', color: '#495057' }}>
+          본 플랫폼은 자동차 제조 공정을 스마트 팩토리 환경에서 <b>실시간 모니터링</b>하는 서비스입니다.  
+          AI 기반 공정별 분석을 통해 <b>불량률 감소, 생산 효율 향상, 안전성 강화</b>를 목표로 합니다.
+        </p>
+
+        <MetricsGrid>
+          <MetricCard>
+            <h3>⬇️ 32%</h3>
+            <p>불량률 감소</p>
+          </MetricCard>
+          <MetricCard>
+            <h3>6개</h3>
+            <p>적용된 AI 모델</p>
+          </MetricCard>
+          <MetricCard>
+            <h3>99%</h3>
+            <p>실시간 데이터 처리율</p>
+          </MetricCard>
+          <MetricCard>
+            <h3>24/7</h3>
+            <p>상시 모니터링 지원</p>
+          </MetricCard>
+        </MetricsGrid>
+      </IntroSection>
     </PageLayout>
   );
 };

@@ -25,8 +25,6 @@ export const AppRouter = () => {
         <Route path="/home" element={<Home />} />
         <Route path="/register" element={<Register />} /> 
         <Route path="/admin/users" element={<UserManagement />} />
-
-        {/* <Route path="/login" element={<Login />} /> */}
         
         {/* 대시보드 및 모니터링 페이지들 - Layout 포함 */}
         <Route path="/*" element={
