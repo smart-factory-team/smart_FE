@@ -120,28 +120,6 @@ const PressFaultChartDashboard = ({
               }}
               name="재구성 오차"
             />
-            {/* 고장 확률 라인 */}
-            {/* <Line 
-              yAxisId="right"
-              type="monotone" 
-              dataKey="faultProbability" 
-              stroke="#10B981" 
-              strokeWidth={3}
-              dot={(props) => {
-                const { cx, cy, payload } = props;
-                return (
-                  <circle 
-                    cx={cx} 
-                    cy={cy} 
-                    r={4} 
-                    fill={payload.isFault ? '#EF4444' : '#10B981'} 
-                    strokeWidth={2}
-                    stroke="#fff"
-                  />
-                );
-              }}
-              name="고장 확률"
-            /> */}
           </LineChart>
         </ResponsiveContainer>
       </div>
