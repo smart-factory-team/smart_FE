@@ -159,14 +159,6 @@ const PDFIframe = styled.iframe`
   background: white;
 `;
 
-const PDFErrorMessage = styled.div`
-  padding: 40px;
-  text-align: center;
-  color: #666;
-  background: #f8f9fa;
-  border-radius: 8px;
-`;
-
 const DownloadButton = styled.a`
   display: inline-flex;
   align-items: center;
@@ -411,16 +403,22 @@ export const PostDetail = () => {
     return categoryMap[category] || category;
   };
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (newComment.trim()) {
-      const comment = {
-        id: comments.length + 1,
-        author: 'current_user',
-        content: newComment,
-        createdAt: new Date().toISOString()
-      };
-      setComments([...comments, comment]);
-      setNewComment('');
+      try {
+        const response = await axios.post('/comments', {
+          content: newComment,
+          userId: "user",
+          postId: id
+        });
+        
+        // 댓글 목록 새로고침
+        fetchComments(id);
+        setNewComment('');
+      } catch (error) {
+        console.error('댓글 등록 실패:', error);
+        alert('댓글 등록에 실패했습니다.');
+      }
     }
   };
 
@@ -443,7 +441,6 @@ export const PostDetail = () => {
   const handleDelete = async () => {
     if (window.confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
       try {
-        // 실제 구현에서는 API 호출
         await axios.delete(`/posts/${id}`);
         alert('게시글이 삭제되었습니다.');
         navigate('/board');
@@ -579,7 +576,7 @@ export const PostDetail = () => {
           {comments.map(comment => (
             <CommentItem key={comment.id}>
               <CommentAuthor>
-                <strong>{comment.author}</strong>
+                <strong>{comment.userId}</strong>
                 <span>|</span>
                 <span>{formatDate(comment.createdAt)}</span>
               </CommentAuthor>
