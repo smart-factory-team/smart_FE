@@ -6,7 +6,7 @@
 
 - 🎯 **불량률 85% 감소** - AI 예측 분석으로 품질 혁신
 - 🤖 **6개 AI 모델 적용** - 공정별 전문 AI 시스템
-- 📊 **99% 실시간 처리율** - 2초 간격 실시간 AI 분석
+- 📊 **99% 실시간 처리율** - 1분 간격 실시간 AI 분석
 - 🔍 **24/7 무인 감시** - AI 자동 모니터링 시스템
 
 ## 🧠 핵심 AI 기능
@@ -171,9 +171,6 @@ src/
 │       ├── EquipmentList/ # 장비 목록
 │       └── PageTitle/     # 페이지 제목
 ├── hooks/                 # 커스텀 훅
-│   ├── useModelApi.js     # 모델 API 훅
-│   ├── usePaintingSurfaceDefect.js  # AI 결함 탐지 훅
-│   └── useRealTimeData.js # 실시간 AI 데이터
 ├── pages/                 # 공정별 모니터링 페이지
 │   ├── Admin/             # 관리자 페이지
 │   ├── AssemblyMonitoring/ # 조립 공정 모니터링
