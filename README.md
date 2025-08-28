@@ -197,7 +197,8 @@ src/
 | 무인 모니터링 | **24/7** | AI 기반 상시 자동 감시 체계 |
 
 ## 시연 영상
-[유튜브에서 시청하기](https://youtu.be/3j6kQe2ZbfQ)
+[시연 영상](https://youtu.be/3j6kQe2ZbfQ)
+<a href="https://youtu.be/3j6kQe2ZbfQ"><img width="1280" height="720" alt="유튜브에서 시청하기" src="https://github.com/user-attachments/assets/56b0e8df-2bc5-49c8-878d-2ffcf3b0bf5e" /></a>
 
 ## 📞 문의
 
