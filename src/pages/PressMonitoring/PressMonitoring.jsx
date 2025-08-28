@@ -247,6 +247,15 @@ import PressFaultChartDashboard from '../../components/charts/ProcessChart/Press
 import PressChartsDashboard from '../../components/charts/ProcessChart/PressChartsDashboard';
 import styled from 'styled-components';
 
+const StyledChartTitle = styled.h3`
+  font-size: 32px;
+  font-weight: 600;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  color: #111827;
+  text-align: center; // 중앙 정렬 추가
+`;
+
 export const PressMonitoring = () => {
     const url = process.env.REACT_APP_API_BASE_URL;
 
@@ -599,19 +608,21 @@ export const PressMonitoring = () => {
             <PageLayout
                 title="프레스 공정 모니터링"
                 description={getConnectionStatusText()}
-                footerTitle="프레스 생산품 결함 실시간 현황"
-                footerDescription={`총 검사: ${defectDetectionStatus.totalInspections}건 | 정상품: ${defectDetectionStatus.goodProducts}건 | 결함품: ${defectDetectionStatus.totalDefects}건 | 불량률: ${defectDetectionStatus.totalInspections > 0 ? ((defectDetectionStatus.totalDefects / defectDetectionStatus.totalInspections) * 100).toFixed(1) : 0}%`}
-                showFooter={true}
+                // footerTitle과 footerDescription을 제거합니다.
+                // showFooter도 false로 변경하거나 제거할 수 있습니다.
             >
-                <EquipmentList
+                <EquipmentList 
                     title="유압펌프 및 생산품 상태 목록"
                     equipmentData={pressEquipmentData}
                     showConnectionStatus={false}
                 />
-                <PressFaultChartDashboard
+                <PressFaultChartDashboard 
                     currentStatus={currentStatus}
                     reconstructionErrorData={reconstructionErrorData}
                 />
+                
+                {/* 텍스트를 차트 컴포넌트 위에 직접 배치합니다 */}
+                <StyledChartTitle>프레스 생산품 결함 실시간 현황</StyledChartTitle>
                 <PressChartsDashboard pressStats={pressStats} />
             </PageLayout>
             <ChatBot />
