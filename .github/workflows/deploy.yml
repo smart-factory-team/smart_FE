@@ -1,0 +1,85 @@
+name: Deploy to AKS
+
+on:
+  push:
+    branches:
+      - main  # main 브랜치에 push 시 실행
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 1. 코드 체크아웃
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # 2. Node.js 설정
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    # 3. 의존성 설치 및 빌드 테스트
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build React app
+      run: npm run build
+
+    # 4. Docker 설정
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # 5. Azure 로그인
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    # 6. ACR 로그인
+    - name: Login to Azure Container Registry
+      run: az acr login --name 23acr
+
+    # 7. Docker 이미지 빌드 및 푸시
+    - name: Build and push Docker image
+      run: |
+        # 고유한 태그 생성 (커밋 SHA + 타임스탬프)
+        IMAGE_TAG="23acr.azurecr.io/demo-ai-frontend:${{ github.sha }}"
+        LATEST_TAG="23acr.azurecr.io/demo-ai-frontend:latest"
+        
+        # AMD64 플랫폼으로 빌드
+        docker buildx build --platform linux/amd64 \
+          -f dockerfile \
+          -t $IMAGE_TAG \
+          -t $LATEST_TAG \
+          --push .
+
+    # 8. AKS 자격증명 설정
+    - name: Set up kubectl
+      uses: azure/k8s-set-context@v3
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+    # 9. AKS 배포 업데이트
+    - name: Deploy to AKS
+      run: |
+        # 새로운 이미지로 deployment 업데이트
+        kubectl set image deployment/nginx-proxy \
+          nginx-proxy=23acr.azurecr.io/demo-ai-frontend:${{ github.sha }} \
+          -n smart-be
+        
+        # 배포 상태 확인
+        kubectl rollout status deployment/nginx-proxy -n smart-be --timeout=300s
+
+    # 10. 배포 성공 알림 (선택사항)
+    - name: Deployment notification
+      if: success()
+      run: |
+        echo "🚀 Deployment successful!"
+        echo "Image: 23acr.azurecr.io/demo-ai-frontend:${{ github.sha }}"
+        
+        # 배포된 서비스 정보 확인
+        kubectl get service nginx-proxy -n smart-be
