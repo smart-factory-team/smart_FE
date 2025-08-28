@@ -34,7 +34,7 @@ jobs:
 
     # 5. Azure 로그인
     - name: Azure Login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -51,6 +51,7 @@ jobs:
         
         # AMD64 플랫폼으로 빌드
         docker buildx build --platform linux/amd64 \
+          -f dockerfile \
           -t $IMAGE_TAG \
           -t $LATEST_TAG \
           --push .
