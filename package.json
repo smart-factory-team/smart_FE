@@ -1,5 +1,5 @@
 {
-  "name": "demo-ai-frontend",
+  "name": "carsmartfactory-frontend",
   "version": "0.1.0",
   "private": true,
   "proxy": "http://localhost:8088",
